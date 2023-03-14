@@ -1,0 +1,16 @@
+yolov7/data/train/*.jpg
+yolov7/data/train/*.txt
+
+dataset/*
+
+yolov7/data/test/*.jpg
+yolov7/data/test/*.txt
+
+PoseEstimation/*.mp4
+
+*.avi
+*.jpg
+*.png
+*.xml
+*.pt
+*.mp4

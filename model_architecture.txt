@@ -1,0 +1,14 @@
+## Model architecture
+
+1. R-CNN for marshall detection
+2. Cropping and sharpening the marshall box
+3. Process Yolov7 -> movment classification
+4. Reduce noise classification
+5. Deep Sort tracking
+
+Example
+front_day_rain-wind-snow_1_666.mp4
+
+front_night_snow_1_123.mp4
+back_day_rain-wind_12_456.mp4
+front_day_none_6_258.mp4

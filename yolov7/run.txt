@@ -1,0 +1,88 @@
+ #!/bin/bash
+##
+## MATLAB submission script for PBS on CRESCENT
+## --------------------------------------------
+##
+## Follow the 6 steps below to configure your job
+## 
+## STEP 1:
+##
+## Enter a job name after the -N on the line below:
+##
+#PBS -N training_initial
+##
+## STEP 2:
+##
+## Select the number of cpus/cores required by modifying the #PBS -l select line below
+##
+## Normally you select cpus in chunks of 16 cpus
+## The Maximum value for ncpus is 16 and mpiprocs MUST be the same value as ncpus.
+##
+## PLEASE NOTE
+## ===========
+## The standard matlab application does not run on more than one node
+## This select line must not be altered except that you can use 32 CPUs
+## if you submit your job to the core32 queue and select 2 chunks of 16
+##	32 CPUs: select=2:ncpus=16:mpiprocs=16
+##
+#PBS -l select=1:ncpus=8:mpiprocs=8:ngpus=1
+##
+## STEP 3:
+#PBS -q gpu
+## Select the correct queue by modifying the #PBS -q line below
+##
+## half_hour	-  30 minutes
+## one_hour	-   1 hour
+## three_hour   -   3 hours
+## six_hour     -   6 hours
+## half_day	-  12 hours
+## one_day	-  24 hours
+## two_day	-  48 hours
+## five_day	- 120 hours
+## ten_day	- 240 hours (by special arrangement)
+## core32	-  24 hours (default) maximum 120 hours
+## 		      to increase the walltime modify the #PBS -l walltime line below
+##		      and remove one of the leading # characters 
+##
+##
+##PBS -l walltime=24:00:00
+##
+## STEP 4:
+##
+## Replace the hpc@cranfield.ac.uk email address
+## with your Cranfield email address on the #PBS -M line below:
+## Your email address is NOT your username
+##
+#PBS -m abe 
+#PBS -M julien.bienvenu.792@cranfield.ac.uk
+##
+## ====================================
+## DO NOT CHANGE THE LINES BETWEEN HERE
+## ====================================
+#PBS -l application=python
+#PBS -j oe
+#PBS -v "CUDA_VISIBLE_DEVICES="
+#PBS -W sandbox=PRIVATE
+#PBS -k n
+ln -s $PWD $PBS_O_WORKDIR/$PBS_JOBID
+## Allocated GPU
+echo CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES
+## Change to working directory
+cd $PBS_O_WORKDIR
+## Calculate number of CPUs
+export cpus=`cat $PBS_NODEFILE | wc -l`
+export gpus=`echo $CUDA_VISIBLE_DEVICES|awk -F"," '{print NF}'`
+## ========
+## AND HERE
+## ========
+
+module load CUDA
+module load PYTHON/3.6.4-foss-2018a
+
+python train.py --batch 4 --epochs 20 --weights yolov7.pt --cache
+
+## Tidy up the log directory
+## DO NOT CHANGE THE LINE BELOW
+## ============================
+rm $PBS_O_WORKDIR/$PBS_JOBID
+#
