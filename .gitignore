@@ -14,3 +14,4 @@ PoseEstimation/*.mp4
 *.xml
 *.pt
 *.mp4
+*.txt

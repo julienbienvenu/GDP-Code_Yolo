@@ -75,6 +75,8 @@ class FCNN_Model():
         print(self.model.predict(X))
 
 if __name__ == '__main__':
+
+    # Load X,y
     
     fcnn = FCNN_Model()
     fcnn.train()

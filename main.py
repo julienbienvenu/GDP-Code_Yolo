@@ -113,8 +113,8 @@ if __name__ == "__main__":
     # create_txt(path_img)
     # send_to_yolo()
     frame = Frame(0,0,0,0,fileroot = 'image_to_detect/image.jpg', img_height=720, img_width=1280)
-    frame.detect()
-    frame.show()
+    # frame.detect()
+    # frame.show()
 
     pose = PoseDetection(frame = frame)
-    pose.detection()
+    pose.generate_txt()
