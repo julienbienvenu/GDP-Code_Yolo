@@ -10,7 +10,7 @@ import torch
 
 class Frame():
 
-    def __init__(self, x1, x2, y1, y2, 
+    def __init__(self, x1=0, x2=0, y1=0, y2=0, 
             filename = 'None', fileroot = 'None', marshall_signal = 0,
             directory = 'None', yolo_name = 'None',
             orientation = 'Front', time = 'day',

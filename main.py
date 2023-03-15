@@ -5,6 +5,7 @@ import numpy as np
 import shutil
 from PIL import Image
 import random
+from PoseEstimation.pose_pipe import PostDetection
 from frame import Frame
 
 from labels import convert_xml_to_txt
@@ -114,3 +115,6 @@ if __name__ == "__main__":
     frame = Frame(0,0,0,0,fileroot = 'image_to_detect/image.jpg', img_height=720, img_width=1280)
     frame.detect()
     frame.show()
+
+    pose = PostDetection(frame = frame)
+    pose.detection()
