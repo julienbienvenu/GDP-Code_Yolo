@@ -3,7 +3,7 @@ from keras.layers import Dense, Flatten, BatchNormalization, Dropout, Conv2D, Ma
 import os
 import pandas as pd
 from keras.models import save_model, load_model
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import KFold, train_test_split
 import matplotlib.pyplot as plt
 from keras.regularizers import L2
 
@@ -71,6 +71,27 @@ class FCNN_Model():
         plt.savefig('PoseEstimation/accuracy.png')
 
         save_model(self.model, 'PoseEstimation/fcnn.h5')
+
+    def train_cross_validation(self):
+        # define the number of folds and the batch size
+        k = 5
+        batch_size = 64
+
+        # create the cross-validation folds using KFold
+        kf = KFold(n_splits=k, shuffle=True)
+
+        # loop over the folds and train/evaluate the model
+        for train_index, test_index in kf.split(self.X_train):
+            # get the train and test data for this fold
+            x_train, y_train = self.X_train[train_index], self.y_train[train_index]
+            x_test, y_test = self.X_train[test_index], self.y_train[test_index]
+
+            # train the model for this fold
+            self.model.fit(x_train, y_train, epochs=4, batch_size=batch_size, verbose=0)
+
+            # evaluate the model on the test data for this fold
+            score = self.model.evaluate(x_test, y_test, batch_size=batch_size, verbose=0)
+            print('Fold accuracy:', score[1])
 
     def data_augmentation(self):
 
@@ -149,4 +170,4 @@ if __name__ == '__main__':
 
     # Load X,y inside class definition    
     fcnn = FCNN_Model()
-    fcnn.train(epochs = 250, batch_size = 64)
+    fcnn.train_cross_validation()
