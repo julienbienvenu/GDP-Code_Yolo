@@ -5,6 +5,8 @@ import pandas as pd
 from keras.models import save_model, load_model
 from sklearn.model_selection import train_test_split
 
+import numpy as np
+
 class FCNN_Model():
 
     def __init__(self, X = [], y = [], load_model = False):
@@ -13,10 +15,11 @@ class FCNN_Model():
 
             # Define the model architecture
             model = Sequential()
-            model.add(Flatten(input_shape=(16, 24)))  # Flatten the input into a 1D array
+            model.add(Flatten(input_shape=(32, 96)))  # Flatten the input into a 1D array
             model.add(Dense(128, activation='relu'))  # First fully connected layer with 128 neurons
             model.add(Dense(64, activation='relu'))
             model.add(BatchNormalization())
+            model.add(Dropout(0.2))
             model.add(Dense(64, activation='relu'))
             model.add(BatchNormalization())
             model.add(Dropout(0.2))
@@ -41,12 +44,12 @@ class FCNN_Model():
 
             self.load_training_data()
             # Dataset
-            self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(X, y, test_size = 0.25, random_state = 42)
+            self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(self.X, self.y, test_size = 0.25, random_state = 42)
 
-    def train(self, epochs=10, batch_size=25):
+    def train(self, epochs=200, batch_size=25):
 
         # Train the model on your data
-        self.model.fit(self.X_train, self.y_train, validation_data=(self.X_test, self.y_test), epochs=10, batch_size=32)
+        self.model.fit(self.X_train, self.y_train, validation_data=(self.X_test, self.y_test), epochs=epochs, batch_size=32)
         save_model(self.model, 'PosutureClassification/fcnn.h5')
 
     def load_model(self):
@@ -59,24 +62,27 @@ class FCNN_Model():
         X = []
         y = []
         
-        path = "PostureClassification/"
+        path = "PoseEstimation/txt_files/"
         files = [path+f for f in os.listdir(path) if f.endswith(".txt")]
 
         for file in files:
-            df = pd.read_csv(file)
-            file.split('_')[0]
+            y_p = [0,0,0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            df = pd.read_csv(file, delim_whitespace=True)
+            df = df.fillna(0)
             X.append(df.values)
-            y.append(int(file.split('_')[0][29:]))
+            y_p[int(file.split('_')[-2]) - 1] = 1
+            y.append(y_p)
 
-        self.X = X
-        self.y = y
+        self.X = np.array(X)
+        self.y = np.array(y)
+
+        print(f'Shape X = {self.X.shape}, y = {len(y)}')
 
     def predict(self, X):
         print(self.model.predict(X))
 
 if __name__ == '__main__':
 
-    # Load X,y
-    
+    # Load X,y inside class definition    
     fcnn = FCNN_Model()
-    fcnn.train()
+    fcnn.train(epochs = 500)
