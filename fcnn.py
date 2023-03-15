@@ -1,9 +1,11 @@
 from keras.models import Sequential
-from keras.layers import Dense, Flatten, BatchNormalization, Dropout
+from keras.layers import Dense, Flatten, BatchNormalization, Dropout, Conv2D, MaxPooling2D
 import os
 import pandas as pd
 from keras.models import save_model, load_model
 from sklearn.model_selection import train_test_split
+import matplotlib.pyplot as plt
+from keras.regularizers import L2
 
 import numpy as np
 
@@ -15,15 +17,21 @@ class FCNN_Model():
 
             # Define the model architecture
             model = Sequential()
-            model.add(Flatten(input_shape=(32, 96)))  # Flatten the input into a 1D array
+            model.add(Conv2D(32, (3, 3), activation='relu', input_shape=(32, 96, 1)))
+            model.add(MaxPooling2D(pool_size=(2, 2)))
+            model.add(Conv2D(64, (3, 3), activation='relu'))
+            model.add(MaxPooling2D(pool_size=(2, 2)))
+            model.add(Conv2D(128, (3, 3), activation='relu'))
+            model.add(MaxPooling2D(pool_size=(2, 2)))
+            model.add(Flatten()) # Flatten the input into a 1D array
             model.add(Dense(128, activation='relu'))  # First fully connected layer with 128 neurons
-            model.add(Dense(64, activation='relu'))
+            model.add(Dense(64, activation='relu', kernel_regularizer=L2(0.01)))
             model.add(BatchNormalization())
-            model.add(Dropout(0.2))
-            model.add(Dense(64, activation='relu'))
+            model.add(Dropout(0.5))
+            model.add(Dense(64, activation='relu', kernel_regularizer=L2(0.01)))
             model.add(BatchNormalization())
-            model.add(Dropout(0.2))
-            model.add(Dense(64, activation='relu'))
+            model.add(Dropout(0.5))
+            model.add(Dense(64, activation='relu', kernel_regularizer=L2(0.01)))
             model.add(BatchNormalization())
             model.add(Dense(15, activation='softmax')) # Output layer with 10 classes (assuming you have 10 classes to classify)
 
@@ -33,31 +41,87 @@ class FCNN_Model():
 
         else :
 
-            self.load_model()
+            self.load_model()        
 
         if len(X) != 0:
-
             # Dataset
             self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(X, y, test_size = 0.25, random_state = 42)
 
         else :
-
+            # Load Data
             self.load_training_data()
+            
             # Dataset
             self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(self.X, self.y, test_size = 0.25, random_state = 42)
+
+            # We perform some data augmention
+            self.data_augmentation()
 
     def train(self, epochs=200, batch_size=25):
 
         # Train the model on your data
-        self.model.fit(self.X_train, self.y_train, validation_data=(self.X_test, self.y_test), epochs=epochs, batch_size=32)
-        save_model(self.model, 'PosutureClassification/fcnn.h5')
+        history = self.model.fit(self.X_train, self.y_train, validation_data=(self.X_test, self.y_test), epochs=epochs, batch_size=batch_size)
+        
+        plt.plot(history.history['accuracy'])
+        plt.plot(history.history['val_accuracy'])
+        plt.title('model accuracy')
+        plt.ylabel('accuracy')
+        plt.xlabel('epoch')
+        plt.legend(['train', 'val'], loc='upper left')
+        plt.savefig('PoseEstimation/accuracy.png')
+
+        save_model(self.model, 'PoseEstimation/fcnn.h5')
+
+    def data_augmentation(self):
+
+        print(f'Data augmentation : start / X : {self.X_train.shape}, y : {self.y_train.shape}')
+
+        max_percent_change = 0.1
+        max_size_change = 0.5
+        new_x_list = []
+        new_y_list = []
+
+        for pos in range(len(self.X_train)):
+            # Add the original matrix to the new list
+            arr = self.X_train[pos]
+            new_x_list.append(arr)
+            new_y_list.append(self.y_train[pos])
+
+            # Create 4 more matrices with 10% maximum variation
+            for i in range(50):
+                # Copy the original matrix
+                new_arr = np.copy(arr)
+
+                # Determine the number of elements to change
+                num_elements = int(np.round(arr.size * max_size_change))
+
+                # Create a mask to select the elements to change
+                mask = np.zeros_like(arr, dtype=bool)
+                mask[np.random.choice(arr.shape[0], size=num_elements, replace=True),
+                    np.random.choice(arr.shape[1], size=num_elements, replace=True)] = True
+
+                # Modify the selected elements
+                max_change =  np.abs(arr[mask]) * max_percent_change
+                new_arr[mask] = np.random.uniform(low=arr[mask] - max_change, high=arr[mask] + max_change)
+
+                # Add the new matrix to the list
+                new_x_list.append(new_arr)
+                new_y_list.append(self.y_train[pos])
+
+        self.X_train = np.array(new_x_list)
+        self.y_train = np.array(new_y_list)
+
+        print(f'Data augmentation : end / X : {self.X_train.shape}, y : {self.y_train.shape}')
+
 
     def load_model(self):
 
-        self.model = load_model('PosutureClassification/fcnn.h5')
+        self.model = load_model('PoseEstimation/fcnn.h5')
         print('Model is successfully loaded')
 
     def load_training_data(self):
+
+        print(f'Collecting data')
 
         X = []
         y = []
@@ -85,4 +149,4 @@ if __name__ == '__main__':
 
     # Load X,y inside class definition    
     fcnn = FCNN_Model()
-    fcnn.train(epochs = 500)
+    fcnn.train(epochs = 250, batch_size = 64)
