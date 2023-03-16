@@ -1,5 +1,5 @@
 from keras.models import Sequential
-from keras.layers import Dense, Flatten, BatchNormalization, Dropout, Conv2D, MaxPooling2D
+from keras.layers import LSTM, Dense, Flatten, BatchNormalization, Dropout, Conv2D, MaxPooling2D
 import os
 import pandas as pd
 from keras.models import save_model, load_model
@@ -15,29 +15,34 @@ class FCNN_Model():
 
         if load_model == False :
 
-            # Define the model architecture
             model = Sequential()
-            model.add(Conv2D(32, (3, 3), activation='relu', input_shape=(32, 96, 1)))
-            model.add(MaxPooling2D(pool_size=(2, 2)))
-            model.add(Conv2D(64, (3, 3), activation='relu'))
-            model.add(MaxPooling2D(pool_size=(2, 2)))
-            model.add(Conv2D(128, (3, 3), activation='relu'))
-            model.add(MaxPooling2D(pool_size=(2, 2)))
-            model.add(Flatten()) # Flatten the input into a 1D array
-            model.add(Dense(128, activation='relu'))  # First fully connected layer with 128 neurons
-            model.add(Dense(64, activation='relu', kernel_regularizer=L2(0.01)))
+            model.add(Flatten(input_shape=(32, 96)))
+            model.add(Dense(16, activation='relu'))
             model.add(BatchNormalization())
             model.add(Dropout(0.5))
-            model.add(Dense(64, activation='relu', kernel_regularizer=L2(0.01)))
+            model.add(Dense(8, activation='relu'))
             model.add(BatchNormalization())
             model.add(Dropout(0.5))
-            model.add(Dense(64, activation='relu', kernel_regularizer=L2(0.01)))
+            model.add(Dense(8, activation='relu'))
             model.add(BatchNormalization())
-            model.add(Dense(15, activation='softmax')) # Output layer with 10 classes (assuming you have 10 classes to classify)
+            model.add(Dense(15, activation='softmax'))
+
+            # model = Sequential()
+            # model.add(LSTM(32, input_shape=(32, 96), return_sequences=True)) # add LSTM layer with 32 units
+            # model.add(BatchNormalization())
+            # model.add(Dropout(0.8))
+            # model.add(LSTM(8, return_sequences=True)) # add another LSTM layer with 16 units
+            # model.add(BatchNormalization())
+            # model.add(Dropout(0.8))
+            # model.add(LSTM(8, return_sequences=False))
+            # model.add(Dense(15, activation='softmax'))
+
+            print(model.summary())
 
             # Compile the model
             model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
             self.model = model
+            
 
         else :
 
@@ -52,12 +57,12 @@ class FCNN_Model():
             self.load_training_data()
             
             # Dataset
-            self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(self.X, self.y, test_size = 0.25, random_state = 42)
+            self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(self.X, self.y, test_size = 0.15, random_state = 42)
 
             # We perform some data augmention
-            self.data_augmentation()
+            # self.data_augmentation()
 
-    def train(self, epochs=200, batch_size=25):
+    def train(self, epochs=200, batch_size=32):
 
         # Train the model on your data
         history = self.model.fit(self.X_train, self.y_train, validation_data=(self.X_test, self.y_test), epochs=epochs, batch_size=batch_size)
@@ -81,10 +86,10 @@ class FCNN_Model():
         kf = KFold(n_splits=k, shuffle=True)
 
         # loop over the folds and train/evaluate the model
-        for train_index, test_index in kf.split(self.X_train):
+        for train_index, test_index in kf.split(self.X):
             # get the train and test data for this fold
-            x_train, y_train = self.X_train[train_index], self.y_train[train_index]
-            x_test, y_test = self.X_train[test_index], self.y_train[test_index]
+            x_train, y_train = self.X[train_index], self.y[train_index]
+            x_test, y_test = self.X[test_index], self.y[test_index]
 
             # train the model for this fold
             self.model.fit(x_train, y_train, epochs=4, batch_size=batch_size, verbose=0)
@@ -97,8 +102,8 @@ class FCNN_Model():
 
         print(f'Data augmentation : start / X : {self.X_train.shape}, y : {self.y_train.shape}')
 
-        max_percent_change = 0.1
-        max_size_change = 0.5
+        max_percent_change = 0.25
+        max_size_change = 0.8
         new_x_list = []
         new_y_list = []
 
@@ -170,4 +175,4 @@ if __name__ == '__main__':
 
     # Load X,y inside class definition    
     fcnn = FCNN_Model()
-    fcnn.train_cross_validation()
+    fcnn.train(epochs = 200, batch_size = 64)
