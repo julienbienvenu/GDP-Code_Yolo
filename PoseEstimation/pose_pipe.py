@@ -25,7 +25,7 @@ class PoseDetection():
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
         # REsize image with Yolo output
-        # image = self.frame.resize_frame(image)
+        image = self.frame.resize_frame(image)
 
         # cv2.imshow("Image", image)
 

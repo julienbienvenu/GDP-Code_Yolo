@@ -45,7 +45,7 @@ class Frame():
 
     # Resize the frame for gesture detection
     def resize_frame(self, frame):
-        return frame[self.x1 : self.x2, self.y1 : self.y2]
+        return frame[int(self.x1) : int(self.x2+1), int(self.y1+1) : int(self.y2+1)]
 
     # Show info
     def show(self):
@@ -108,13 +108,23 @@ class Frame():
             print("No marshall found")
         
         else :
-            self.x1 = (values[0]-(values[3]/2))*self.img_width
-            self.y1 = (values[1]-(values[2]/2))*self.img_height
-            self.x2 = (values[0]+(values[3]/2))*self.img_width
-            self.y2 = (values[1]+(values[2]/2))*self.img_height   
+            self.x1 = (values[0]-(values[2]/2))*self.img_width
+            self.y1 = (values[1]-(values[3]/2))*self.img_height
+            self.x2 = (values[0]+(values[2]/2))*self.img_width
+            self.y2 = (values[1]+(values[3]/2))*self.img_height   
 
+    def plot(self):
 
+        img = cv2.imread(self.fileroot)
+        # Draw the bounding box on the image
+        cv2.rectangle(img, (int(self.x1), int(self.y1)), (int(self.x2), int(self.y2)), (0, 255, 0), 2)
 
+        # Show the image with the bounding box
+        cv2.imshow('Image with bounding box', img)
+
+        # Wait for a key press and then close the window
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
 
 # This class store all the Frame parameters of one video
 # Not USE
