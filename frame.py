@@ -45,7 +45,7 @@ class Frame():
 
     # Resize the frame for gesture detection
     def resize_frame(self, frame):
-        return frame[int(self.x1) : int(self.x2+1), int(self.y1+1) : int(self.y2+1)]
+        return frame[int(self.y1) : int(self.y2+1), int(self.x1+1) : int(self.x2+1)]
 
     # Show info
     def show(self):
@@ -91,7 +91,7 @@ class Frame():
 
             f.close()        
 
-    def detect(self, weight = 'yolov7/yolov7.pt', conf = 0.4, image = 'test/image.png'):
+    def detect(self, weight = 'yolov7/yolov7.pt', conf = 0.4, image = 'test/image.png', image_cv2 = "None"):
         # Detect the marshall and get the bounding box
         # Based on detect.py from Yolo
         # - conf : minimun confidence
@@ -129,6 +129,9 @@ class Frame():
 # This class store all the Frame parameters of one video
 # Not USE
 class Video():
-    def __init__(self, name = 'None', list_frames = []):
-        self.name = name
+    def __init__(self, filename = 'None', list_frames = []):
+        self.filename = filename
         self.list_frames = list_frames
+
+
+    

@@ -24,28 +24,56 @@ class PoseDetection():
         image = cv2.imread(self.frame.fileroot)
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
-        # REsize image with Yolo output
+        # Resize image with Yolo output
         image = self.frame.resize_frame(image)
 
         # cv2.imshow("Image", image)
 
         results = pose.process(image)
         cpt = 0
-        positions = []
+        points_list = [11,12,13,14,15,16,23,24]
+        
+        df = np.zeros((8, 1, 2))
 
-        for landmark in results.pose_landmarks.landmark:
-            cpt += 1
-            x = int(landmark.x * image.shape[1])
-            y = int(landmark.y * image.shape[0])
-            cv2.circle(image, (x, y), 5, (0, 255, 0), -1)
-            positions.append([x,y])
+        if results.pose_landmarks is not None:
 
-            with open('image_to_detect/points.txt', 'a') as file:
-                    file.write(f"{cpt}: ({round(x, 5)}, {round(y, 5)})" + '\n')
-                    file.close()
+            # Detect the pose landmarks using Mediapipe
+            with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as pose:
+                results = pose.process(image)
+
+                # Extract the pose landmarks and store them in the dataframe
+                if results.pose_landmarks is not None:
+                    cpt = 0
+                    i=0
+                    for j, landmark in enumerate(results.pose_landmarks.landmark):
+
+                        if j in points_list : 
+
+                            df[cpt][i][0] = landmark.x
+                            df[cpt][i][1] = landmark.y
+                            cpt += 1
+                            cv2.circle(image, (int(landmark.x), int(landmark.y)), 15, (0, 255, 0), -1)
+
+                    self.x_norm = abs(df[6][i][0] - df[7][i][0])
+                    self.y_norm = abs(df[1][i][1] - df[7][i][1])
+
+                    self.x_ref = df[7][i][0]
+                    self.y_ref = df[7][i][1]
+
+                    # Normalization
+                    for j in range(len(df)):
+                        df[j][i][0] = round(self.distance_x(df[j][i][0]),3)
+                        df[j][i][1] = round(self.distance_y(df[j][i][1]),3)
+
+                    # Write the dataframe to the output file
+                    np.savetxt('image_to_detect/points.txt', df.reshape(8, 2), fmt='%f')                
+
+        else : 
+
+            print(f'No detection : {self.frame.fileroot}')
 
         image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-        cv2.imshow("Image", image)
+        cv2.imshow("Image with MediaPipe points", image)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
 
@@ -60,6 +88,8 @@ class PoseDetection():
 
         path = 'dataset/videos/'
         folders = [f2.path for f1 in os.scandir(path) for f2 in os.scandir(f1.path) if f2.name.endswith(".mp4")]
+        
+        points_list = [11,12,13,14,15,16,23,24]
 
         # Initialize the Mediapipe drawing objects
         mp_drawing = mp.solutions.drawing_utils
@@ -67,10 +97,10 @@ class PoseDetection():
 
         for h in range(len(folders)) :
 
-            video_path = folders[h]
+            video_path = folders[h]           
 
             video = cv2.VideoCapture(video_path)
-            df = np.zeros((33, nb_frames, 2))
+            df = np.zeros((8, nb_frames, 2))
             txt_file = video_path.split('\\')[-1][:-4] + '.txt'
 
             for i in range(nb_frames):
@@ -89,28 +119,35 @@ class PoseDetection():
                 # Convert the image to RGB
                 image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
+                # Load frame and resize image 
+                self.frame = Frame()
+                self.frame.detect(image_cv2 = image)
+                image = self.frame.resize_frame(image)
+
                 # Detect the pose landmarks using Mediapipe
                 with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as pose:
                     results = pose.process(image)
 
                     # Extract the pose landmarks and store them in the dataframe
                     if results.pose_landmarks is not None:
+                        cpt = 0
                         for j, landmark in enumerate(results.pose_landmarks.landmark):
-                            df[j][i][0] = landmark.x
-                            df[j][i][1] = landmark.y
 
-                    # Draw the pose landmarks on the image
-                    mp_drawing.draw_landmarks(image, results.pose_landmarks, mp_pose.POSE_CONNECTIONS)
+                            if j in points_list : 
+                                
+                                df[cpt][i][0] = landmark.x
+                                df[cpt][i][1] = landmark.y
+                                cpt += 1
 
                 # We normalize all the values with the following :
                 # (24,23) -> x absciss
                 # (24,12) -> y absciss
 
-                self.x_norm = abs(df[23][i][0] - df[24][i][0])
-                self.y_norm = abs(df[12][i][1] - df[24][i][1])
+                self.x_norm = abs(df[6][i][0] - df[7][i][0])
+                self.y_norm = abs(df[1][i][1] - df[7][i][1])
 
-                self.x_ref = df[24][i][0]
-                self.y_ref = df[24][i][1]
+                self.x_ref = df[7][i][0]
+                self.y_ref = df[7][i][1]
 
                 # Normalization
                 for j in range(len(df)):
@@ -118,6 +155,6 @@ class PoseDetection():
                     df[j][i][1] = round(self.distance_y(df[j][i][1]),3)
 
             # Write the dataframe to the output file
-            np.savetxt("PoseEstimation/txt_files/" + txt_file, df.reshape(33, nb_frames*2), fmt='%f')
+            np.savetxt("PoseEstimation/txt_files/" + txt_file, df.reshape(8, nb_frames*2), fmt='%f')
             print(f'Done {h/len(folders)}: {video_path}')
         

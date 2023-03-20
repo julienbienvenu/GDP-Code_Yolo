@@ -52,7 +52,10 @@ Use the following classes :
 The objective of this algorithm is to detect the marshalls.
 
 ### PoseEstimation
-Ask Bouthaina
+MediaPipe
+
+We run the Mediapipe detection on the crop image. The output will be the following body points : 
+
 
 ### PostureClassification
 Based on a F-CNN model (not pre-weighted), design not already defined :
