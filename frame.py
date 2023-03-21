@@ -5,6 +5,7 @@ import numpy as np
 import shutil
 import cv2
 import sys
+import pandas as pd
 
 import torch
 
@@ -15,7 +16,8 @@ class Frame():
             directory = 'None', yolo_name = 'None',
             orientation = 'Front', time = 'day',
             img_width = 0, img_height = 0,
-            rain = 'False', wind = 'False', snow = 'False', fog = 'False'
+            rain = 'False', wind = 'False', snow = 'False', fog = 'False',
+            frame = ""
             ):
 
         #Infos
@@ -108,6 +110,7 @@ class Frame():
             print("No marshall found")
         
         else :
+
             self.x1 = (values[0]-(values[2]/2))*self.img_width
             self.y1 = (values[1]-(values[3]/2))*self.img_height
             self.x2 = (values[0]+(values[2]/2))*self.img_width
@@ -129,9 +132,88 @@ class Frame():
 # This class store all the Frame parameters of one video
 # Not USE
 class Video():
-    def __init__(self, filename = 'None', list_frames = []):
-        self.filename = filename
-        self.list_frames = list_frames
+
+    def __init__(self, filename = 'None', output_folder = "image_to_detect/detection/"):
+        
+        self.filename = filename        
+        self.output_folder = output_folder
+        self.bbox_list = pd.DataFrame({'xmin': [], 'xmax': [], 'ymin': [], 'ymax': []})
+
+        # Store the video to a list of frames
+        self.frames = []
+        self.frame_count = 0     
+        
+        # Get the video properties
+        cap = cv2.VideoCapture(self.filename)
+        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+        # Loop through the frames in the video
+        while cap.isOpened():
+            # Read the current frame
+            ret, frame = cap.read()
+
+            # If we have reached the end of the video, break the loop
+            if not ret:
+                break
+
+            if self.frame_count > 3:
+                break
+
+            # Add the current frame to the list of frames
+            filename = os.path.join(output_folder, f"frame_{self.frame_count}.jpg")
+            cv2.imwrite(filename, frame)
+            self.frames.append(Frame(fileroot=os.path.join(output_folder, f"frame_{self.frame_count}.jpg"),
+                                  img_width=width, 
+                                  img_height=height                   
+                                    )
+                            )
+
+            # Increment the frame count
+            self.frame_count += 1           
+
+        # Release the video capture object and close all windows
+        cap.release()
+        cv2.destroyAllWindows()        
+
+    def detection(self):
+        # Generate all the bbox
+        for frame in self.frames:
+            if frame.fileroot not in self.bbox_list.index:
+                frame.detect()
+                new_row = pd.DataFrame({'xmin': frame.x1, 'xmax': frame.x2, 'ymin': frame.y1, 'ymax': frame.y2}, index=[frame.fileroot])
+                self.bbox_list.loc[frame.fileroot] = new_row.loc[frame.fileroot]
+
+        self.xmin = min(self.bbox_list['xmin'])
+        self.xmax = max(self.bbox_list['xmax'])
+        self.ymin = min(self.bbox_list['ymin'])
+        self.ymax = max(self.bbox_list['ymax'])
+
+    def show(self):
+        print(f'Video bbox : (xmin, xmax, ymin, ymax) = ({self.xmin}, {self.xmax}, {self.ymin}, {self.ymax})')
+
+    def update(self, nb_frames = 1):
+        # We remove the last x frames and add the new x frames
+        for i in range(nb_frames):
+            # Check if the file exists
+            file_path = self.frames[i].x
+            if os.path.exists(file_path):
+                # Remove the file
+                os.remove(file_path)
+
+        self.frames = self.frames[nb_frames:]        
+
+        # Add the new frames
+        # depend on the input
+
+        # We perform a new detection
+        self.detection()
+
+    def posture(self):
+
+        print('Wait Bouthaina')
+
+
 
 
     
