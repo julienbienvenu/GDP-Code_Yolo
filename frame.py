@@ -46,8 +46,12 @@ class Frame():
         self.img_height = img_height        
 
     # Resize the frame for gesture detection
-    def resize_frame(self, frame):
-        return frame[int(self.y1) : int(self.y2+1), int(self.x1+1) : int(self.x2+1)]
+    def resize_frame(self, frame = 'None'):
+        if frame != 'None':
+            return frame[int(self.y1) : int(self.y2+1), int(self.x1+1) : int(self.x2+1)]
+        else:
+            frame = cv2.imread(self.fileroot)
+            self.frame = frame[int(self.y1) : int(self.y2+1), int(self.x1+1) : int(self.x2+1)]
 
     # Show info
     def show(self):
@@ -184,13 +188,13 @@ class Video():
                 new_row = pd.DataFrame({'xmin': frame.x1, 'xmax': frame.x2, 'ymin': frame.y1, 'ymax': frame.y2}, index=[frame.fileroot])
                 self.bbox_list.loc[frame.fileroot] = new_row.loc[frame.fileroot]
 
-        self.xmin = min(self.bbox_list['xmin'])
-        self.xmax = max(self.bbox_list['xmax'])
-        self.ymin = min(self.bbox_list['ymin'])
-        self.ymax = max(self.bbox_list['ymax'])
+        self.x1 = min(self.bbox_list['xmin'])
+        self.x2 = max(self.bbox_list['xmax'])
+        self.y1 = min(self.bbox_list['ymin'])
+        self.y2 = max(self.bbox_list['ymax'])
 
     def show(self):
-        print(f'Video bbox : (xmin, xmax, ymin, ymax) = ({self.xmin}, {self.xmax}, {self.ymin}, {self.ymax})')
+        print(f'Video bbox : (xmin, xmax, ymin, ymax) = ({self.x1}, {self.x2}, {self.y1}, {self.y2})')
 
     def update(self, nb_frames = 1):
         # We remove the last x frames and add the new x frames
@@ -211,9 +215,13 @@ class Video():
 
     def posture(self):
 
-        print('Wait Bouthaina')
+        for frame in self.frames:
 
+            frame.x1 = self.x1
+            frame.x2 = self.x2
+            frame.y1 = self.y1
+            frame.y2 = self.y2
 
+            frame.resize_frame()
 
-
-    
+        print('Wait Bouthaina')    
