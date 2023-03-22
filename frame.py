@@ -1,4 +1,4 @@
-# class to store all the info of the xml file
+# Class to store all the info of the xml file
 import os
 import random
 import numpy as np
@@ -8,6 +8,8 @@ import sys
 import pandas as pd
 
 import torch
+
+from PoseEstimation.pipe_detection import PipeDetection
 
 class Frame():
 
@@ -78,7 +80,7 @@ class Frame():
         #Normalize the label for Yolo
         self.yolo_normalization()
 
-        with open(path_to_yolo+self.filename[:-4]+'.txt', 'a') as f:
+        with open(path_to_yolo + self.filename[:-4]+'.txt', 'a') as f:
 
             if marshall_classification:
 
@@ -152,35 +154,42 @@ class Video():
         width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        interval = 1/fps*10
+
         # Loop through the frames in the video
         while cap.isOpened():
             # Read the current frame
             ret, frame = cap.read()
+            time_stamp = cap.get(cv2.CAP_PROP_POS_MSEC) / 1000.0
 
             # If we have reached the end of the video, break the loop
             if not ret:
                 break
 
-            if self.frame_count > 3:
+            if self.frame_count > 10:
                 break
 
-            # Add the current frame to the list of frames
-            filename = os.path.join(output_folder, f"frame_{self.frame_count}.jpg")
-            cv2.imwrite(filename, frame)
-            self.frames.append(Frame(fileroot=os.path.join(output_folder, f"frame_{self.frame_count}.jpg"),
-                                  img_width=width, 
-                                  img_height=height                   
-                                    )
-                            )
+            if time_stamp > interval * self.frame_count:
 
-            # Increment the frame count
-            self.frame_count += 1           
+                # Add the current frame to the list of frames
+                filename = os.path.join(output_folder, f"frame_{self.frame_count}.jpg")
+                cv2.imwrite(filename, frame)
+                self.frames.append(Frame(fileroot=os.path.join(output_folder, f"frame_{self.frame_count}.jpg"),
+                                    img_width=width, 
+                                    img_height=height                   
+                                        )
+                                )
+
+                # Increment the frame count
+                self.frame_count += 1           
 
         # Release the video capture object and close all windows
         cap.release()
         cv2.destroyAllWindows()        
 
     def detection(self):
+
         # Generate all the bbox
         for frame in self.frames:
             if frame.fileroot not in self.bbox_list.index:
@@ -223,5 +232,9 @@ class Video():
             frame.y2 = self.y2
 
             frame.resize_frame()
+
+            # Call Posture function
+            pipe = PipeDetection(frame.frame, fileroot = frame.fileroot.split("/")[-1].split(".")[0])
+            pipe.write_txt()
 
         print('Wait Bouthaina')    
