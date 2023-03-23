@@ -1,0 +1,124 @@
+import os
+import numpy as np
+import pandas as pd
+from keras.models import Sequential, load_model
+from keras.layers import Dense, BatchNormalization, Dropout
+from keras.optimizers import Adam
+from sklearn.model_selection import train_test_split, KFold
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import MinMaxScaler
+from keras.preprocessing.sequence import TimeseriesGenerator
+
+class ActionClassifier:
+    
+    def __init__(self):
+        pass
+
+    def load_data(self, norm_folder, angles_folder):
+        norm_files = [os.path.join(norm_folder, f) for f in os.listdir(norm_folder) if f.endswith('.txt')]
+        angles_files = [os.path.join(angles_folder, f) for f in os.listdir(angles_folder) if f.endswith('.txt')]
+        
+        X_norm, y_norm, X_angles, y_angles = [], [], [], []
+        
+        for file in norm_files:
+            df = pd.read_csv(file, delim_whitespace=True)
+            X_norm.append(df.values)
+            y_norm.append(int(file.split('_')[-2]) - 1)
+            
+        for file in angles_files:
+            df = pd.read_csv(file, delim_whitespace=True)
+            X_angles.append(df.values)
+            y_angles.append(int(file.split('_')[-2]) - 1)
+            
+        return np.array(X_norm), np.array(y_norm), np.array(X_angles), np.array(y_angles)
+
+    def create_fcnn(self, input_shape):
+        model = Sequential()
+        model.add(Dense(128, activation='relu', input_shape=input_shape))
+        model.add(BatchNormalization())
+        model.add(Dropout(0.5))
+        model.add(Dense(256, activation='relu'))
+        model.add(BatchNormalization())
+        model.add(Dropout(0.5))
+        model.add(Dense(128, activation='relu'))
+        model.add(BatchNormalization())
+        model.add(Dropout(0.5))
+        model.add(Dense(15, activation='softmax'))
+
+        model.compile(loss='sparse_categorical_crossentropy', optimizer=Adam(lr=0.001), metrics=['accuracy'])
+        return model
+
+    def augment_data(self, X, y, augmentation_factor=2, batch_size=32, timesteps=10):
+        X_augmented = []
+        y_augmented = []
+
+        for i in range(len(X)):
+            scaler = MinMaxScaler(feature_range=(-1, 1))
+            X_scaled = scaler.fit_transform(X[i])
+            X_reshaped = X_scaled.reshape(1, -1, 1)
+
+            generator = TimeseriesGenerator(X_reshaped[0], y[i], length=timesteps, batch_size=batch_size)
+
+            for sequence, label in generator:
+                X_augmented.append(sequence)
+                y_augmented.append(label)
+
+        X_augmented = np.array(X_augmented)
+        y_augmented = np.array(y_augmented)
+
+        return np.vstack((X, X_augmented)), np.hstack((y, y_augmented))
+
+    def train_and_evaluate_kfold(self, X, y, model, k=5, epochs=100, batch_size=32, augmentation_factor=2):
+        skf = StratifiedKFold(n_splits=k, shuffle=True, random_state=42)
+        fold = 1
+        for train_index, test_index in skf.split(X, y):
+            X_train, X_test = X[train_index], X[test_index]
+            y_train, y_test = y[train_index], y[test_index]
+
+            X_train, y_train = self.augment_data(X_train, y_train, augmentation_factor=augmentation_factor, batch_size=batch_size)
+
+            print(f'Training on fold {fold}')
+            model.fit(X_train, y_train, epochs=epochs, batch_size=batch_size, verbose=1, validation_data=(X_test, y_test))
+            scores = model.evaluate(X_test, y_test, verbose=0)
+            print("Fold %d Accuracy: %.2f%%" % (fold, scores[1] * 100))
+            fold += 1
+
+
+    def save_model(self, model, filename):
+        model.save(filename)
+
+    def load_trained_model(self, filename):
+        return load_model(filename)
+
+    def predict_probabilities(self, model, X):
+        return model.predict(X)
+
+if __name__ == '__main__':
+    classifier = ActionClassifier()
+    
+    X_norm, y_norm, X_angles, y_angles = classifier.load_data('image_to_detect/norm', 'image_to_detect/angles')
+    
+    model_keypoints = classifier.create_fcnn((X_norm.shape[1],))
+    print("Training model for keypoints:")
+    trained_model_keypoints = classifier.train_and_evaluate_kfold(X_norm, y_norm, model_keypoints)
+
+    model_angles = classifier.create_fcnn((X_angles.shape[1],))
+    print("Training model for angles:")
+    trained_model_angles = classifier.train_and_evaluate_kfold(X_angles, y_angles, model_angles)
+
+    # Save the trained models
+    trained_model_keypoints.save('trained_model_keypoints.h5')
+    trained_model_angles.save('trained_model_angles.h5')
+
+    # Load the trained models for prediction
+    loaded_model_keypoints = load_model('trained_model_keypoints.h5')
+    loaded_model_angles = load_model('trained_model_angles.h5')
+
+    # Perform predictions using the loaded models
+    keypoints_pred = loaded_model_keypoints.predict(X_norm)
+    angles_pred = loaded_model_angles.predict(X_angles)
+
+    print("Predictions for keypoints:")
+    print(keypoints_pred)
+    print("Predictions for angles:")
+    print(angles_pred)
