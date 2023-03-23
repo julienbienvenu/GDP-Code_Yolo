@@ -6,7 +6,7 @@ import shutil
 import cv2
 import sys
 import pandas as pd
-
+import glob
 import torch
 
 from PoseEstimation.pipe_detection import PipeDetection
@@ -139,11 +139,19 @@ class Frame():
 # Not USE
 class Video():
 
-    def __init__(self, filename = 'None', output_folder = "image_to_detect/detection/"):
+    def __init__(self, filename = 'None', output_folder = "image_to_detect/detection/", 
+                 clean_txt = False, clean_jpg = False):
         
         self.filename = filename        
         self.output_folder = output_folder
         self.bbox_list = pd.DataFrame({'xmin': [], 'xmax': [], 'ymin': [], 'ymax': []})
+
+        # Clean previous files
+        if clean_txt :
+            self.clean_previous_txt()
+
+        if clean_jpg :
+            self.clean_previous_jpg()
 
         # Store the video to a list of frames
         self.frames = []
@@ -173,20 +181,39 @@ class Video():
             if time_stamp > interval * self.frame_count:
 
                 # Add the current frame to the list of frames
-                filename = os.path.join(output_folder, f"frame_{self.frame_count}.jpg")
+                filename = os.path.join(output_folder, self.filename.split("\\")[-1].split(".")[0] + f"_frame_{self.frame_count}.jpg")
                 cv2.imwrite(filename, frame)
-                self.frames.append(Frame(fileroot=os.path.join(output_folder, f"frame_{self.frame_count}.jpg"),
-                                    img_width=width, 
-                                    img_height=height                   
-                                        )
-                                )
+                self.frames.append(Frame(
+                    fileroot=os.path.join(output_folder, self.filename.split("\\")[-1].split(".")[0] + f"_frame_{self.frame_count}.jpg"),
+                    img_width=width, 
+                    img_height=height                   
+                ))
+                print(os.path.join(output_folder, self.filename.split("\\")[-1].split(".")[0] + f"_frame_{self.frame_count}.jpg"))
 
                 # Increment the frame count
                 self.frame_count += 1           
 
         # Release the video capture object and close all windows
         cap.release()
-        cv2.destroyAllWindows()        
+        cv2.destroyAllWindows()      
+
+    def clean_previous_txt(self):
+
+        folder_path = 'image_to_detect/'
+        txt_files = glob.glob(os.path.join(folder_path, '**/*.txt'), recursive=True)
+
+        # iterate over the files and delete them
+        for file_path in txt_files:
+            os.remove(file_path)
+
+    def clean_previous_jpg(self):
+
+        folder_path = 'image_to_detect/'
+        jpg_files = glob.glob(os.path.join(folder_path, '**/*.jpg'), recursive=True)
+
+        # iterate over the files and delete them
+        for file_path in jpg_files:
+            os.remove(file_path)   
 
     def detection(self):
 
@@ -224,6 +251,14 @@ class Video():
 
     def posture(self):
 
+        # List of values
+        video_angles = []
+        video_norm = []
+
+        # Output folders
+        output_angles = "image_to_detect/angles/"
+        output_norm = "image_to_detect/norm/"
+
         for frame in self.frames:
 
             frame.x1 = self.x1
@@ -234,7 +269,16 @@ class Video():
             frame.resize_frame()
 
             # Call Posture function
-            pipe = PipeDetection(frame.frame, fileroot = frame.fileroot.split("/")[-1].split(".")[0])
-            pipe.write_txt()
+            pipe = PipeDetection(frame.frame, fileroot = frame.fileroot.split("\\")[-1].split(".")[0])
+            video_angles.append(pipe.get_angles())
+            video_norm.append(pipe.get_landmarks_normalized())
 
-        print('Wait Bouthaina')    
+        # Write TXT norm
+        m_norm = np.array(video_norm)
+        m_norm = m_norm.reshape(-1, m_norm.shape[-1])
+        np.savetxt(os.path.join(output_norm, self.filename.split("\\")[-1].split(".")[0] + '.txt'), m_norm, fmt='%.4f') 
+
+        # Write TXT angles
+        m_angles = np.array(video_angles)
+        m_angles = m_angles.reshape(-1, m_angles.shape[-1])
+        np.savetxt(os.path.join(output_angles, self.filename.split("\\")[-1].split(".")[0] + '.txt'), m_angles, fmt='%.4f')

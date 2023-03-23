@@ -7,6 +7,7 @@ from PIL import Image
 import random
 from PoseEstimation.pose_pipe import PoseDetection
 from frame import Frame, Video
+import glob
 
 from labels import convert_xml_to_txt
 
@@ -64,18 +65,29 @@ def send_to_yolo():
 
     print('Done')
 
+def main_generate_txt_posture():
+
+    path = "dataset/"
+    folders = glob.glob(os.path.join(path, '**/*.mp4'), recursive=True)
+
+    print(len(folders))
+
 def main():
     # This function take a video as input and perform the detection on all its frames
     # No update for the moment
 
-    input_video = Video(filename="image_to_detect/test.mp4")
-    input_video.detection()
-    input_video.show()
-    input_video.posture()
+    path = "dataset/"
+    folders = glob.glob(os.path.join(path, '**/*.mp4'), recursive=True)
+
+    for folder in folders:
+
+        input_video = Video(filename = folder, clean_jpg = True)
+        input_video.detection()
+        input_video.posture()
 
 if __name__ == "__main__":
     
-    main() 
+    main()
 
     # pose = PoseDetection()
     # pose.generate_txt()

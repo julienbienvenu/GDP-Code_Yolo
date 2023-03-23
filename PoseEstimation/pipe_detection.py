@@ -9,7 +9,7 @@ class PipeDetection():
         self.frame = frame 
         self.fileroot = fileroot 
 
-        self.set_matrix_landmarks()     
+        self.set_matrix_landmarks()   
 
     def set_matrix_landmarks(self):
         ### INPUT: an object from the class Frame
