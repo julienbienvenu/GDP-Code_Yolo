@@ -9,7 +9,10 @@ class PipeDetection():
         self.frame = frame 
         self.fileroot = fileroot 
 
-        self.set_matrix_landmarks()   
+        try :
+            self.set_matrix_landmarks()   
+        except :
+            pass
 
     def set_matrix_landmarks(self):
         ### INPUT: an object from the class Frame
@@ -32,6 +35,10 @@ class PipeDetection():
             for i in [16, 14, 12, 11, 13, 15, 24, 23]:
                 mat.append([results.pose_landmarks.landmark[mp_pose.PoseLandmark(i).value].x, results.pose_landmarks.landmark[mp_pose.PoseLandmark(i).value].y, results.pose_landmarks.landmark[mp_pose.PoseLandmark(i).value].z])
 
+        else :
+
+            mat = [[0, 0, 0] for _ in range(8)]
+
         self.landmarks = mat.copy()
 
     def get_landmarks_normalized(self):
@@ -39,101 +46,113 @@ class PipeDetection():
         ### OUTPUT: a 8 * 3 matrix with normalized coordinates for each relevant landmark in the order: 
         ###         R wrist, R elbow, R shoulder, L shoulder, L elbow, L wrist, R hip, L hip
 
-        mat = self.landmarks
-        matnormalized = []
+        try :
+            mat = self.landmarks
+            matnormalized = []
 
-        for i in range(len(mat)):
-            normalized = mat[i].copy()
-            normalized[0] = (normalized[0] - mat[6][0]) / (mat[7][0] - mat[6][0])
-            normalized[1] = (normalized[1] - mat[6][1]) / (mat[2][1] - mat[6][1])
-            normalized[2] = normalized[2] / mat[6][2]
-            matnormalized.append(normalized)
+            for i in range(len(mat)):
+                normalized = mat[i].copy()
+                normalized[0] = (normalized[0] - mat[6][0]) / (mat[7][0] - mat[6][0])
+                normalized[1] = (normalized[1] - mat[6][1]) / (mat[2][1] - mat[6][1])
+                normalized[2] = normalized[2] / mat[6][2]
+                matnormalized.append(normalized)
 
-        self.matnormalized = matnormalized
+            self.matnormalized = matnormalized
 
-        return matnormalized
+            return matnormalized
+        
+        except:
+
+            return [[0,0,0] for _ in range(8)]
     
     def get_angles(self):
 
-        ### INPUT: obkect in the class Frame
+        ### INPUT: object in the class Frame
         ### OUTPUT: a list with four angles: the right wrist, elbow, shoulder angle 
         ###                                  the right elbow, shoulder, hip angle
         ###                                  the left elbow, shoulder, hip angle
         ###                                  the left wrist, elbow, shoulder angle
 
-        image_height, image_width, _ = self.frame.shape
-        matpixels = []
+        try :
 
-        for i in range(len(self.landmarks)):
-            pixels = self.landmarks[i].copy()
-            pixels[0] = pixels[0]*image_width
-            pixels[1] = pixels[1]*image_height
-            pixels[2] = pixels[2]*image_width
-            matpixels.append(pixels)
+            image_height, image_width, _ = self.frame.shape
+            matpixels = []
 
-        ax = matpixels[0][0] - matpixels[1][0]
-        ay = matpixels[0][1] - matpixels[1][1]
-        az = matpixels[0][2] - matpixels[1][2]
+            for i in range(len(self.landmarks)):
+                    pixels = self.landmarks[i].copy()
+                    pixels[0] = pixels[0]*image_width
+                    pixels[1] = pixels[1]*image_height
+                    pixels[2] = pixels[2]*image_width
+                    matpixels.append(pixels)
 
-        bx = matpixels[2][0] - matpixels[1][0]
-        by = matpixels[2][1] - matpixels[1][1]
-        bz = matpixels[2][2] - matpixels[1][2]
+            ax = matpixels[0][0] - matpixels[1][0]
+            ay = matpixels[0][1] - matpixels[1][1]
+            az = matpixels[0][2] - matpixels[1][2]
 
-        angle_R_WES = ([ax, ay, az], [bx, by, bz])
+            bx = matpixels[2][0] - matpixels[1][0]
+            by = matpixels[2][1] - matpixels[1][1]
+            bz = matpixels[2][2] - matpixels[1][2]
 
-        ax = matpixels[1][0] - matpixels[2][0]
-        ay = matpixels[1][1] - matpixels[2][1]
-        az = matpixels[1][2] - matpixels[2][2]
+            angle_R_WES = ([ax, ay, az], [bx, by, bz])
 
-        bx = matpixels[6][0] - matpixels[2][0]
-        by = matpixels[6][1] - matpixels[2][1]
-        bz = matpixels[6][2] - matpixels[2][2]
+            ax = matpixels[1][0] - matpixels[2][0]
+            ay = matpixels[1][1] - matpixels[2][1]
+            az = matpixels[1][2] - matpixels[2][2]
 
-        angle_R_ESH = ([ax, ay, az], [bx, by, bz])
+            bx = matpixels[6][0] - matpixels[2][0]
+            by = matpixels[6][1] - matpixels[2][1]
+            bz = matpixels[6][2] - matpixels[2][2]
 
-        ax = matpixels[4][0] - matpixels[3][0]
-        ay = matpixels[4][1] - matpixels[3][1]
-        az = matpixels[4][2] - matpixels[3][2]
+            angle_R_ESH = ([ax, ay, az], [bx, by, bz])
 
-        bx = matpixels[7][0] - matpixels[3][0]
-        by = matpixels[7][1] - matpixels[3][1]
-        bz = matpixels[7][2] - matpixels[3][2]
+            ax = matpixels[4][0] - matpixels[3][0]
+            ay = matpixels[4][1] - matpixels[3][1]
+            az = matpixels[4][2] - matpixels[3][2]
 
-        angle_L_ESH = ([ax, ay, az], [bx, by, bz])
+            bx = matpixels[7][0] - matpixels[3][0]
+            by = matpixels[7][1] - matpixels[3][1]
+            bz = matpixels[7][2] - matpixels[3][2]
 
-        ax = matpixels[5][0] - matpixels[4][0]
-        ay = matpixels[5][1] - matpixels[4][1]
-        az = matpixels[5][2] - matpixels[4][2]
+            angle_L_ESH = ([ax, ay, az], [bx, by, bz])
 
-        bx = matpixels[3][0] - matpixels[4][0]
-        by = matpixels[3][1] - matpixels[4][1]
-        bz = matpixels[3][2] - matpixels[4][2]
+            ax = matpixels[5][0] - matpixels[4][0]
+            ay = matpixels[5][1] - matpixels[4][1]
+            az = matpixels[5][2] - matpixels[4][2]
 
-        angle_L_WES = ([ax, ay, az], [bx, by, bz])
+            bx = matpixels[3][0] - matpixels[4][0]
+            by = matpixels[3][1] - matpixels[4][1]
+            bz = matpixels[3][2] - matpixels[4][2]
 
-        angles = []
+            angle_L_WES = ([ax, ay, az], [bx, by, bz])
 
-        for angle_vec in [angle_R_WES, angle_R_ESH, angle_L_ESH, angle_L_WES]:
-            # define two vectors
-            a = np.array(angle_vec[0])
-            b = np.array(angle_vec[1])
+            angles = []
 
-            cp = np.cross(a, b)
+            for angle_vec in [angle_R_WES, angle_R_ESH, angle_L_ESH, angle_L_WES]:
+                # define two vectors
+                a = np.array(angle_vec[0])
+                b = np.array(angle_vec[1])
 
-            # calculate the angle between the two vectors in radians
-            angle = np.arccos(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))
+                cp = np.cross(a, b)
 
-            if np.sign(cp[2]) < 0:
-                angle = -angle
+                # calculate the angle between the two vectors in radians
+                angle = np.arccos(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))
 
-            # convert the angle to degrees
-            angle_degrees = np.degrees(angle)
+                if np.sign(cp[2]) < 0:
+                    angle = -angle
 
-            angles.append(angle_degrees)
+                # convert the angle to degrees
+                angle_degrees = np.degrees(angle)
 
-        self.angles = angles
+                angles.append(angle_degrees)
 
-        return angles
+            self.angles = angles
+
+            return angles
+    
+        except :
+            
+            return [0, 0, 0, 0]
+
     
     def write_txt(self):
 

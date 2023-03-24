@@ -79,6 +79,16 @@ def main():
     path = "dataset/"
     folders = glob.glob(os.path.join(path, '**/*.mp4'), recursive=True)
 
+    path_output = "image_to_detect/"
+    folders_output = glob.glob(os.path.join(path_output, 'angles/*.txt'), recursive=True)
+    folders_output = [file.split('\\')[-1].split('.')[0] for file in folders_output]
+
+    for file in folders[:]:
+        if file.split('\\')[-1].split('.')[0] in folders_output:
+            folders.remove(file)
+
+    print(len(folders))
+
     for folder in folders:
 
         input_video = Video(filename = folder, clean_jpg = True)
