@@ -24,7 +24,7 @@ class PipeDetection():
         mp_pose = mp.solutions.pose
 
         # Setting up the Pose function.
-        pose = mp_pose.Pose(static_image_mode=True, min_detection_confidence=0.3, model_complexity=2)
+        pose = mp_pose.Pose(static_image_mode=True, min_detection_confidence=0.1, model_complexity=2)
         results = pose.process(cv2.cvtColor(self.frame, cv2.COLOR_BGR2RGB))
 
         mat = []

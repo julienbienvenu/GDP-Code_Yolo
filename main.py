@@ -66,11 +66,8 @@ def send_to_yolo():
     print('Done')
 
 def main_generate_txt_posture():
-
-    path = "dataset/"
-    folders = glob.glob(os.path.join(path, '**/*.mp4'), recursive=True)
-
-    print(len(folders))
+    
+    print('Hello')
 
 def main():
     # This function take a video as input and perform the detection on all its frames

@@ -6,6 +6,9 @@ from keras.models import save_model, load_model
 from sklearn.model_selection import KFold, train_test_split
 import matplotlib.pyplot as plt
 from keras.regularizers import L2
+from keras.preprocessing.image import ImageDataGenerator
+from keras.preprocessing.sequence import TimeseriesGenerator
+from numpy.random import randint
 
 import numpy as np
 
@@ -15,27 +18,27 @@ class FCNN_Model():
 
         if load_model == False :
 
-            model = Sequential()
-            model.add(Flatten(input_shape=(32, 96)))
-            model.add(Dense(16, activation='relu'))
-            model.add(BatchNormalization())
-            model.add(Dropout(0.5))
-            model.add(Dense(8, activation='relu'))
-            model.add(BatchNormalization())
-            model.add(Dropout(0.5))
-            model.add(Dense(8, activation='relu'))
-            model.add(BatchNormalization())
-            model.add(Dense(15, activation='softmax'))
-
             # model = Sequential()
-            # model.add(LSTM(32, input_shape=(32, 96), return_sequences=True)) # add LSTM layer with 32 units
+            # model.add(Flatten(input_shape=(14, 4)))
+            # model.add(Dense(16, activation='relu'))
             # model.add(BatchNormalization())
-            # model.add(Dropout(0.8))
-            # model.add(LSTM(8, return_sequences=True)) # add another LSTM layer with 16 units
+            # model.add(Dropout(0.5))
+            # model.add(Dense(8, activation='relu'))
             # model.add(BatchNormalization())
-            # model.add(Dropout(0.8))
-            # model.add(LSTM(8, return_sequences=False))
+            # model.add(Dropout(0.5))
+            # model.add(Dense(8, activation='relu'))
+            # model.add(BatchNormalization())
             # model.add(Dense(15, activation='softmax'))
+
+            model = Sequential()
+            model.add(LSTM(14, input_shape=(14, 4), return_sequences=True)) # add LSTM layer with 32 units
+            model.add(BatchNormalization())
+            model.add(Dropout(0.5))
+            model.add(LSTM(16, return_sequences=True, kernel_regularizer=L2(0.01))) # add another LSTM layer with 16 units
+            model.add(BatchNormalization())
+            model.add(Dropout(0.5))
+            model.add(LSTM(16, return_sequences=False))
+            model.add(Dense(15, activation='softmax'))
 
             print(model.summary())
 
@@ -60,22 +63,24 @@ class FCNN_Model():
             self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(self.X, self.y, test_size = 0.15, random_state = 42)
 
             # We perform some data augmention
-            # self.data_augmentation()
+            self.data_augmentation()
 
     def train(self, epochs=200, batch_size=32):
 
         # Train the model on your data
         history = self.model.fit(self.X_train, self.y_train, validation_data=(self.X_test, self.y_test), epochs=epochs, batch_size=batch_size)
         
-        plt.plot(history.history['accuracy'])
-        plt.plot(history.history['val_accuracy'])
-        plt.title('model accuracy')
-        plt.ylabel('accuracy')
-        plt.xlabel('epoch')
-        plt.legend(['train', 'val'], loc='upper left')
-        plt.savefig('PoseEstimation/accuracy.png')
+        # plt.plot(history.history['accuracy'])
+        # plt.plot(history.history['val_accuracy'])
+        # plt.title('model accuracy')
+        # plt.ylabel('accuracy')
+        # plt.xlabel('epoch')
+        # plt.legend(['train', 'val'], loc='upper left')
+        # plt.savefig(f'PoseEstimation/images/accuracy_batch_{batch_size}.png')
 
-        save_model(self.model, 'PoseEstimation/fcnn.h5')
+        save_model(self.model, f'PoseEstimation/fcnn_batch{batch_size}.h5')
+
+        return history.history['accuracy'] - history.history['val_accuracy']
 
     def train_cross_validation(self):
         # define the number of folds and the batch size
@@ -114,7 +119,7 @@ class FCNN_Model():
             new_y_list.append(self.y_train[pos])
 
             # Create 4 more matrices with 10% maximum variation
-            for i in range(50):
+            for _ in range(50):
                 # Copy the original matrix
                 new_arr = np.copy(arr)
 
@@ -152,13 +157,22 @@ class FCNN_Model():
         X = []
         y = []
         
-        path = "PoseEstimation/txt_files/"
+        path = "image_to_detect/angles/"
         files = [path+f for f in os.listdir(path) if f.endswith(".txt")]
 
         for file in files:
             y_p = [0,0,0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-            df = pd.read_csv(file, delim_whitespace=True)
+            df = pd.read_csv(file, delim_whitespace=True, header=None)
+
+            # Modify NaN values
             df = df.fillna(0)
+
+            # Fill lines
+            num_rows_to_add = 14 - df.shape[0]
+            for i in range(num_rows_to_add):
+                row = [i, i+1, i+2, i+3]  # example data
+                df = df.append(pd.Series(row, index=df.columns), ignore_index=True)
+
             X.append(df.values)
             y_p[int(file.split('_')[-2]) - 1] = 1
             y.append(y_p)
@@ -166,13 +180,34 @@ class FCNN_Model():
         self.X = np.array(X)
         self.y = np.array(y)
 
-        print(f'Shape X = {self.X.shape}, y = {len(y)}')
+        # Data Augmentation
+        # self.X, self.y = data_augmentation(self.x, self.y)
+
+        print(self.X.shape, self.y.shape)
+
+        print(f'Shape X = {self.X.shape}, y = {len(self.y.shape)}')
 
     def predict(self, X):
         print(self.model.predict(X))
 
+def test_batch():
+
+    fcnn = FCNN_Model()
+
+    for batch in [8, 16, 32, 64, 128, 256]:
+
+        plt.plot(fcnn.train(epochs = 75, batch_size = batch))
+
+    plt.title('Val accuracy for batch sizes (data augmentation)')
+    plt.ylabel('accuracy')
+    plt.xlabel('epoch')
+    plt.legend([str(i) for i in [8, 16, 32, 64, 128, 256]], loc='upper left')
+    plt.savefig(f'PoseEstimation/images/accuracy_many_batch.png')
+
 if __name__ == '__main__':
 
     # Load X,y inside class definition    
-    fcnn = FCNN_Model()
-    fcnn.train(epochs = 200, batch_size = 64)
+    # fcnn = FCNN_Model()
+    # fcnn.train(epochs = 50, batch_size = 32)
+
+    test_batch()
