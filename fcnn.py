@@ -33,10 +33,10 @@ class FCNN_Model():
             model = Sequential()
             model.add(LSTM(14, input_shape=(14, 4), return_sequences=True)) # add LSTM layer with 32 units
             model.add(BatchNormalization())
-            model.add(Dropout(0.5))
+            model.add(Dropout(0.8))
             model.add(LSTM(16, return_sequences=True, kernel_regularizer=L2(0.01))) # add another LSTM layer with 16 units
             model.add(BatchNormalization())
-            model.add(Dropout(0.5))
+            model.add(Dropout(0.8))
             model.add(LSTM(16, return_sequences=False))
             model.add(Dense(15, activation='softmax'))
 
@@ -70,17 +70,17 @@ class FCNN_Model():
         # Train the model on your data
         history = self.model.fit(self.X_train, self.y_train, validation_data=(self.X_test, self.y_test), epochs=epochs, batch_size=batch_size)
         
-        # plt.plot(history.history['accuracy'])
-        # plt.plot(history.history['val_accuracy'])
-        # plt.title('model accuracy')
-        # plt.ylabel('accuracy')
-        # plt.xlabel('epoch')
-        # plt.legend(['train', 'val'], loc='upper left')
-        # plt.savefig(f'PoseEstimation/images/accuracy_batch_{batch_size}.png')
+        plt.plot(history.history['accuracy'])
+        plt.plot(history.history['val_accuracy'])
+        plt.title('model accuracy')
+        plt.ylabel('accuracy')
+        plt.xlabel('epoch')
+        plt.legend(['train', 'val'], loc='upper left')
+        plt.savefig(f'output_graph/accuracy_batch_{batch_size}.png')
 
         save_model(self.model, f'PoseEstimation/fcnn_batch{batch_size}.h5')
 
-        return history.history['accuracy'] - history.history['val_accuracy']
+        return history.history['accuracy']
 
     def train_cross_validation(self):
         # define the number of folds and the batch size
@@ -112,14 +112,34 @@ class FCNN_Model():
         new_x_list = []
         new_y_list = []
 
-        for pos in range(len(self.X_train)):
-            # Add the original matrix to the new list
-            arr = self.X_train[pos]
-            new_x_list.append(arr)
-            new_y_list.append(self.y_train[pos])
+        # Convert one-hot encoded labels to class indices
+        class_indices = np.argmax(self.y_train, axis=1)
 
-            # Create 4 more matrices with 10% maximum variation
-            for _ in range(50):
+        # Count the number of instances for each class in the original dataset
+        class_counts = {}
+        for label in class_indices:
+            if label not in class_counts:
+                class_counts[label] = 0
+            class_counts[label] += 1
+
+        # Determine the maximum number of instances for each class in the augmented dataset
+        # We multiply the dataset by 3
+        max_class_count = max(class_counts.values()) * 5
+
+        for label, count in class_counts.items():
+            # Add the original matrices to the new list
+            label_indices = np.where(class_indices == label)[0]
+            arrs = self.X_train[label_indices]
+            new_x_list.extend(arrs)
+            new_y_list.extend([self.y_train[label_indices[0]]] * count)
+            # Determine how many more instances to add for this class
+            num_to_add = max_class_count - count
+
+            # Create new matrices with 10% maximum variation
+            for _ in range(num_to_add):
+                # Randomly select an original matrix to modify
+                arr = arrs[np.random.randint(len(arrs))]
+
                 # Copy the original matrix
                 new_arr = np.copy(arr)
 
@@ -137,13 +157,42 @@ class FCNN_Model():
 
                 # Add the new matrix to the list
                 new_x_list.append(new_arr)
-                new_y_list.append(self.y_train[pos])
+                new_y_list.append(self.y_train[label_indices[0]])
 
         self.X_train = np.array(new_x_list)
         self.y_train = np.array(new_y_list)
 
         print(f'Data augmentation : end / X : {self.X_train.shape}, y : {self.y_train.shape}')
 
+        # Plot a histogram to verify the number of instances for each class in the augmented dataset
+        print(class_indices)
+        plt.hist(class_indices, bins=len(class_counts))
+        plt.xticks(list(class_counts.keys()))
+        plt.xlabel('Class')
+        plt.ylabel('Number of Instances')
+        plt.title('Histogram of Classes in Dataset')
+        plt.savefig('output_graph/dataset_before_augmentation.png')
+        plt.show()
+
+        # Convert one-hot encoded labels to class indices
+        class_indices = np.argmax(self.y_train, axis=1)
+
+        # Count the number of instances for each class in the augmented dataset
+        class_counts = {}
+        for label in class_indices:
+            if label not in class_counts:
+                class_counts[label] = 0
+            class_counts[label] += 1
+
+        # Update the histogram with the new counts
+        plt.clf()
+        plt.hist(class_indices, bins=len(class_counts))
+        plt.xticks(list(class_counts.keys()))
+        plt.xlabel('Class')
+        plt.ylabel('Number of Instances')
+        plt.title('Histogram of Classes in Augmented Dataset')
+        plt.savefig('output_graph/dataset_after_augmentation.png')
+        plt.show()
 
     def load_model(self):
 
@@ -208,6 +257,6 @@ if __name__ == '__main__':
 
     # Load X,y inside class definition    
     fcnn = FCNN_Model()
-    fcnn.train(epochs = 75, batch_size = 8)
+    fcnn.train(epochs = 50, batch_size = 8)
 
     # test_batch()

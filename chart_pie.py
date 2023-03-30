@@ -34,7 +34,7 @@ def mediapipe_pie():
 def class_detection():
 
     # Load the model
-    model = load_model('PoseEstimation/fcnn.h5')
+    model = load_model('PoseEstimation/fcnn_batch8.h5')
 
     # Define the classes
     classes = ['class_1', 'class_2', 'class_3', 'class_4', 'class_5', 'class_6', 'class_7', 'class_8', 'class_9', 'class_10', 'class_11', 'class_12', 'class_13', 'class_14', 'class_15']
@@ -125,6 +125,7 @@ def class_detection():
     ax.set_xticks(x)
     ax.set_xticklabels(classes, rotation=45)
     ax.set_ylabel('Number of Samples')
+    ax.set_title('Classifier absolute values')
     ax.set_ylim([0, 80])
     ax.legend()
 
@@ -134,7 +135,39 @@ def class_detection():
     #     ax.text(i-width/2, true_positives[cls]+5, f"{true_positives[cls]/total_samples*100:.2f} %", ha='center')
     #     ax.text(i+width/2, false_detections[cls]+5, f"{false_detections[cls]/total_samples*100:.2f} %", ha='center')
 
-    plt.savefig("output_graph/classifier_efficiency.png")
+    plt.savefig("output_graph/classifier_efficiency_absolute.png")
+    plt.show()
+
+    # Plot the histograms for true positives and false detections for each class - normalized
+    fig, ax = plt.subplots(figsize=(10, 6))
+    x = np.arange(len(classes))
+    width = 0.35
+
+    for cls in classes :
+        n = max(true_positives[cls] + false_detections[cls], 1)
+        true_positives[cls] = true_positives[cls]/n
+        false_detections[cls] = false_detections[cls]/n
+
+    print(true_positives)
+
+    true_positives_vals = [true_positives[cls] for cls in classes]
+    false_detections_vals = [false_detections[cls] for cls in classes]
+    ax.bar(x - width/2, true_positives_vals, width, label='True Positives')
+    ax.bar(x + width/2, false_detections_vals, width, label='False Detections')
+    ax.set_xticks(x)
+    ax.set_xticklabels(classes, rotation=45)
+    ax.set_ylabel('Number of Samples')
+    ax.set_title('Classifier normalized values')
+    ax.set_ylim([0, 1])
+    ax.legend()
+
+    # # Normalize the histogram in percentages
+    # for i, cls in enumerate(classes):
+    #     total_samples = true_positives[cls] + false_detections[cls]
+    #     ax.text(i-width/2, true_positives[cls]+5, f"{true_positives[cls]/total_samples*100:.2f} %", ha='center')
+    #     ax.text(i+width/2, false_detections[cls]+5, f"{false_detections[cls]/total_samples*100:.2f} %", ha='center')
+
+    plt.savefig("output_graph/classifier_efficiency_normalized.png")
     plt.show()
 
 class_detection()
