@@ -139,11 +139,13 @@ class Frame():
 # Not USE
 class Video():
 
-    def __init__(self, filename = 'None', output_folder = "image_to_detect/detection/", 
+    def __init__(self, filename = 'None', output_folder = "image_to_detect/", 
+                 writing_folder = 'None',
                  clean_txt = False, clean_jpg = False):
         
         self.filename = filename        
-        self.output_folder = output_folder
+        self.output_folder = output_folder + '/' + writing_folder + '/'
+        self.writing_folder = writing_folder
         self.bbox_list = pd.DataFrame({'xmin': [], 'xmax': [], 'ymin': [], 'ymax': []})
 
         # Clean previous files
@@ -182,14 +184,14 @@ class Video():
             if time_stamp > interval * self.frame_count:
 
                 # Add the current frame to the list of frames
-                filename = os.path.join(output_folder, self.filename.split("\\")[-1].split(".")[0] + f"_frame_{self.frame_count}.jpg")
+                filename = os.path.join(self.output_folder, self.filename.split("\\")[-1].split(".")[0] + f"_frame_{self.frame_count}.jpg")
                 cv2.imwrite(filename, frame)
                 self.frames.append(Frame(
-                    fileroot=os.path.join(output_folder, self.filename.split("\\")[-1].split(".")[0] + f"_frame_{self.frame_count}.jpg"),
+                    fileroot=os.path.join(self.output_folder, self.filename.split("\\")[-1].split(".")[0] + f"_frame_{self.frame_count}.jpg"),
                     img_width=width, 
                     img_height=height                   
                 ))
-                print(os.path.join(output_folder, self.filename.split("\\")[-1].split(".")[0] + f"_frame_{self.frame_count}.jpg"))
+                print(os.path.join(self.output_folder, self.filename.split("\\")[-1].split(".")[0] + f"_frame_{self.frame_count}.jpg"))
 
                 # Increment the frame count
                 self.frame_count += 1           
@@ -210,7 +212,7 @@ class Video():
     def clean_previous_jpg(self):
 
         folder_path = 'image_to_detect/'
-        jpg_files = glob.glob(os.path.join(folder_path, '**/*.jpg'), recursive=True)
+        jpg_files = glob.glob(os.path.join(folder_path + self.writing_folder, '/*.jpg'), recursive=True)
 
         # iterate over the files and delete them
         for file_path in jpg_files:

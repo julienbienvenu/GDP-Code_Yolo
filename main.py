@@ -8,6 +8,8 @@ import random
 from PoseEstimation.pose_pipe import PoseDetection
 from frame import Frame, Video
 import glob
+from multiprocessing import Pool
+from tqdm import tqdm
 
 from labels import convert_xml_to_txt
 
@@ -86,13 +88,28 @@ def main():
 
     print(len(folders))
 
-    for folder in folders:
+    # We use 4 threads
+    detection_folders = [f'detection_{i+1}' for i in range(8)]
 
-        input_video = Video(filename = folder, clean_jpg = True)
+    sublist_size = (len(folders) + 7) // 8
+    result_folders = [(folders[i*sublist_size:(i+1)*sublist_size], i) for i in range(8)]
+
+    with Pool(processes=8) as pool:
+        results = list(tqdm(pool.imap(run_detection_list, result_folders), total=len(result_folders)))
+
+
+def run_detection_list(folders):
+
+    folder_list, ite = folders
+
+    for folder in folder_list:
+
+        input_video = Video(filename = folder, clean_jpg = True, writing_folder = f'detection_{ite+1}')
         input_video.detection()
         input_video.posture()
 
-if __name__ == "__main__":
+
+if __name__ == "__main__" :
     
     main()
 
