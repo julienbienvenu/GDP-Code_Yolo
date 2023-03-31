@@ -257,6 +257,6 @@ if __name__ == '__main__':
 
     # Load X,y inside class definition    
     fcnn = FCNN_Model()
-    fcnn.train(epochs = 50, batch_size = 8)
+    fcnn.train(epochs = 100, batch_size = 8)
 
     # test_batch()
