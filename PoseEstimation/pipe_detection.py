@@ -132,10 +132,18 @@ class PipeDetection():
                 a = np.array(angle_vec[0])
                 b = np.array(angle_vec[1])
 
+                a_norm = np.linalg.norm(a)
+                b_norm = np.linalg.norm(b)
+
                 cp = np.cross(a, b)
 
                 # calculate the angle between the two vectors in radians
-                angle = np.arccos(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))
+                # angle = np.arccos(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))
+                
+                if a_norm != 0 and b_norm != 0:
+                    angle = np.arccos(np.clip(np.dot(a, b) / (a_norm * b_norm), -1, 1))
+                else:
+                    angle = 0.0
 
                 if np.sign(cp[2]) < 0:
                     angle = -angle
@@ -156,16 +164,16 @@ class PipeDetection():
     
     def write_txt(self):
 
-        m = self.get_landmarks_normalized()
+        # m = self.get_landmarks_normalized()
         a = self.get_angles()
 
         # Output folders
         output_angles = "image_to_detect/angles/"
         output_norm = "image_to_detect/norm/"
 
-        # Write TXT norm
-        m_norm = np.array(self.matnormalized)
-        np.savetxt(os.path.join(output_norm, self.fileroot + '.txt'), m_norm, fmt='%.4f') 
+        # # Write TXT norm
+        # m_norm = np.array(self.matnormalized)
+        # np.savetxt(os.path.join(output_norm, self.fileroot + '.txt'), m_norm, fmt='%.4f') 
 
         # Write TXT angles
         m_angles = np.array(self.angles)

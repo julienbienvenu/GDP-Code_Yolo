@@ -94,7 +94,7 @@ def main():
     sublist_size = (len(folders) + 7) // 8
     result_folders = [(folders[i*sublist_size:(i+1)*sublist_size], i) for i in range(8)]
 
-    with Pool(processes=8) as pool:
+    with Pool(processes = 8) as pool:
         results = list(tqdm(pool.imap(run_detection_list, result_folders), total=len(result_folders)))
 
 
@@ -105,8 +105,10 @@ def run_detection_list(folders):
     for folder in folder_list:
 
         input_video = Video(filename = folder, clean_jpg = True, writing_folder = f'detection_{ite+1}')
-        input_video.detection()
+        input_video.detection(yolo = False)
         input_video.posture()
+
+        del input_video
 
 
 if __name__ == "__main__" :

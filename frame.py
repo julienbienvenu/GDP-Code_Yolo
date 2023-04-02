@@ -191,7 +191,6 @@ class Video():
                     img_width=width, 
                     img_height=height                   
                 ))
-                print(os.path.join(self.output_folder, self.filename.split("\\")[-1].split(".")[0] + f"_frame_{self.frame_count}.jpg"))
 
                 # Increment the frame count
                 self.frame_count += 1           
@@ -212,25 +211,34 @@ class Video():
     def clean_previous_jpg(self):
 
         folder_path = 'image_to_detect/'
-        jpg_files = glob.glob(os.path.join(folder_path + self.writing_folder, '/*.jpg'), recursive=True)
-
+        jpg_files = glob.glob(os.path.join(folder_path + self.writing_folder + '/', '*.jpg'), recursive=True)
+        
         # iterate over the files and delete them
         for file_path in jpg_files:
             os.remove(file_path)   
 
-    def detection(self):
+    def detection(self, yolo = True):
 
-        # Generate all the bbox
-        for frame in self.frames:
-            if frame.fileroot not in self.bbox_list.index:
-                frame.detect()
-                new_row = pd.DataFrame({'xmin': frame.x1, 'xmax': frame.x2, 'ymin': frame.y1, 'ymax': frame.y2}, index=[frame.fileroot])
-                self.bbox_list.loc[frame.fileroot] = new_row.loc[frame.fileroot]
+        if yolo :
 
-        self.x1 = min(self.bbox_list['xmin'])
-        self.x2 = max(self.bbox_list['xmax'])
-        self.y1 = min(self.bbox_list['ymin'])
-        self.y2 = max(self.bbox_list['ymax'])
+            # Generate all the bbox
+            for frame in self.frames:
+                if frame.fileroot not in self.bbox_list.index:
+                    frame.detect()
+                    new_row = pd.DataFrame({'xmin': frame.x1, 'xmax': frame.x2, 'ymin': frame.y1, 'ymax': frame.y2}, index=[frame.fileroot])
+                    self.bbox_list.loc[frame.fileroot] = new_row.loc[frame.fileroot]
+
+            self.x1 = min(self.bbox_list['xmin'])
+            self.x2 = max(self.bbox_list['xmax'])
+            self.y1 = min(self.bbox_list['ymin'])
+            self.y2 = max(self.bbox_list['ymax'])
+
+        else :
+
+            self.x1 = 0
+            self.x2 = int(self.frames[0].img_width)
+            self.y1 = 0
+            self.y2 = int(self.frames[0].img_height)
 
     def show(self):
         print(f'Video bbox : (xmin, xmax, ymin, ymax) = ({self.x1}, {self.x2}, {self.y1}, {self.y2})')

@@ -9,6 +9,18 @@ from keras.regularizers import L2
 from keras.preprocessing.image import ImageDataGenerator
 from keras.preprocessing.sequence import TimeseriesGenerator
 from numpy.random import randint
+import shutil
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, AdaBoostClassifier
+from sklearn.naive_bayes import GaussianNB
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.svm import SVC
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.neural_network import MLPClassifier
+from xgboost import XGBClassifier
+from sklearn.metrics import accuracy_score
+import matplotlib.pyplot as plt
+
 
 import numpy as np
 
@@ -107,7 +119,7 @@ class FCNN_Model():
 
         print(f'Data augmentation : start / X : {self.X_train.shape}, y : {self.y_train.shape}')
 
-        max_percent_change = 0.25
+        max_percent_change = 0.4
         max_size_change = 0.8
         new_x_list = []
         new_y_list = []
@@ -124,7 +136,7 @@ class FCNN_Model():
 
         # Determine the maximum number of instances for each class in the augmented dataset
         # We multiply the dataset by 3
-        max_class_count = max(class_counts.values()) * 5
+        max_class_count = max(class_counts.values()) * 50
 
         for label, count in class_counts.items():
             # Add the original matrices to the new list
@@ -239,6 +251,49 @@ class FCNN_Model():
     def predict(self, X):
         print(self.model.predict(X))
 
+    def train_others(self, epochs = 25):  
+
+        # Reshape X
+        self.X_train = np.reshape(self.X_train, (self.X_train.shape[0], -1))
+        self.X_test = np.reshape(self.X_test, (self.X_test.shape[0], -1))
+
+        # transform y to a binary matrix using one-hot encoding
+        self.y_train = y_train = np.argmax(self.y_train, axis=1)
+        self.y_test = y_train = np.argmax(self.y_test, axis=1)
+
+        # Define the preweighted models
+        models = {
+            'Logistic Regression': LogisticRegression(class_weight='balanced', max_iter=epochs),
+            'Random Forest': RandomForestClassifier(class_weight='balanced', n_estimators=epochs),
+            'SVM': SVC(class_weight='balanced', max_iter=epochs),
+            # 'Naive Bayes': GaussianNB(),
+            # 'Gradient Boosting': GradientBoostingClassifier(n_estimators=epochs),
+            'Decision Tree': DecisionTreeClassifier(class_weight='balanced', max_depth=10),
+            # 'KNN': KNeighborsClassifier(weights='distance', n_neighbors=10),
+            # 'Multi-layer Perceptron': MLPClassifier(hidden_layer_sizes=(32, 16), max_iter=epochs),
+            # 'AdaBoost': AdaBoostClassifier(n_estimators=epochs),
+            # 'XGBoost': XGBClassifier(n_estimators=epochs, max_depth=10, objective='multi:softmax', num_class=15)
+        }
+
+        # Train and evaluate each model for X epochs
+        scores = []
+        for name, model in models.items():
+            model.fit(self.X_train, self.y_train)
+            y_pred = model.predict(self.X_test)
+            score = accuracy_score(self.y_test, y_pred)
+            scores.append(score)
+            print(f"{name}: {score}")
+
+        # Plot the results in a histogram
+        fig, ax = plt.subplots()
+        ax.bar(models.keys(), scores)
+        ax.set_ylabel('Accuracy')
+        ax.set_xticklabels(models.keys(), rotation=45, ha='right')
+        plt.title(f"Accuracy Scores for {epochs} epochs")
+        plt.tight_layout()
+        plt.savefig('output_graph/models_comparisons.png')
+        plt.show()
+
 def test_batch():
 
     fcnn = FCNN_Model()
@@ -253,10 +308,27 @@ def test_batch():
     plt.legend([str(i) for i in [8, 16, 32, 64, 128, 256]], loc='upper left')
     plt.savefig(f'PoseEstimation/images/accuracy_many_batch.png')
 
+def sort_angles():
+
+    path = "image_to_detect/angles/"
+    files = [path+f for f in os.listdir(path) if f.endswith(".txt")]
+
+    class_list = [[] for _ in range(15)]
+    for file in files :
+        class_list[int(file.split("_")[-2]) - 1].append(file)
+    
+    for cls in class_list:
+        for i in range(int(len(cls)*0.2)):
+            shutil.move(cls[i], 'image_to_detect/angles_test/'+ cls[i].split('/')[-1])
+
+
 if __name__ == '__main__':
+
+    # sort_angles()
 
     # Load X,y inside class definition    
     fcnn = FCNN_Model()
-    fcnn.train(epochs = 100, batch_size = 8)
+    # fcnn.train(epochs = 100, batch_size = 8)
+    fcnn.train_others(epochs = 200)
 
     # test_batch()

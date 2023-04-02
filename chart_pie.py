@@ -9,15 +9,43 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 
-def mediapipe_pie():
+def plot_hisogram_test():
+
+    # Get test files
+    path = "image_to_detect/angles_test/"
+    files = [path+f for f in os.listdir(path) if f.endswith(".txt")]
+
+    class_indices = [int(file.split('_')[-2]) for file in files]
+
+    # Count the number of instances for each class in the augmented dataset
+    class_counts = {}
+    for label in class_indices:
+        if label not in class_counts:
+            class_counts[label] = 0
+        class_counts[label] += 1
+
+    # Update the histogram with the new counts
+    plt.clf()
+    plt.hist(class_indices, bins=len(class_counts))
+    plt.xticks(list(class_counts.keys()))
+    plt.xlabel('Class')
+    plt.ylabel('Number of Instances')
+    plt.title('Histogram of Test Classes')
+    plt.savefig('output_graph/dataset_test.png')
+    plt.show()
+
+def mediapipe_pie_zeros():
 
     path = "image_to_detect/angles/"
-    files = [path+f for f in os.listdir(path) if f.endswith(".txt")]
+    files = [path + f for f in os.listdir(path) if f.endswith(".txt")]
     df_list = []
 
     for file in files:
-        df = pd.read_csv(file, delim_whitespace=True, header=None)
-        df_list.append(df)
+        try :
+            df = pd.read_csv(file, delim_whitespace=True, header=None)
+            df_list.append(df)
+        except : 
+            pass
 
     # count the number of NaN values and zeros in each dataframe
     nan_count = sum([df.isna().any().any() for df in df_list])
@@ -29,7 +57,38 @@ def mediapipe_pie():
     ax[0].set_title('MediaPipe detection with NaN values')
     ax[1].pie([zero_count, len(df_list)-zero_count], labels=['With 0', 'Without 0'], autopct='%1.1f%%')
     ax[1].set_title('MediaPipe detection with zeros')
+    plt.savefig('output_graph/mediapipe_efficiency.png')
     plt.show()
+
+def mediapipe_pie_ratios():
+
+    path = "image_to_detect/angles/"
+    files = [path + f for f in os.listdir(path) if f.endswith(".txt")]
+    df_list = []
+
+    for file in files:
+        try :
+            df = pd.read_csv(file, delim_whitespace=True, header=None)
+            df_list.append(df)
+        except : 
+            pass
+
+    ratios = []
+    for df in df_list:
+        count = (df == 0).any(axis=1).sum()
+        if count != 0:
+            ratio = count / df.shape[0]
+            ratios.append(ratio)
+
+    # create a subplot with two pie charts for the NaN values and zeros
+    # plot a histogram of the ratios
+    plt.hist(ratios)
+    plt.title('Ratio of Rows with 0 Values')
+    plt.xlabel('Ratio')
+    plt.ylabel('Frequency')
+    plt.savefig('output_graph/mediapipe_efficiency_ratio.png')
+    plt.show()
+    
 
 def class_detection():
 
@@ -47,7 +106,7 @@ def class_detection():
     class_pred_list = []
 
     # Loop over all files in the directory
-    for filename in os.listdir('image_to_detect/angles/'):
+    for filename in os.listdir('image_to_detect/angles_test/'):
         
         if filename.endswith('.txt'):
 
@@ -57,7 +116,7 @@ def class_detection():
                 class_target_list.append(int(filename.split('_')[3]))
 
                 # Load the data from the file
-                df = pd.read_csv(os.path.join('image_to_detect/angles/', filename), delim_whitespace=True, header=None)
+                df = pd.read_csv(os.path.join('image_to_detect/angles_test/', filename), delim_whitespace=True, header=None)
 
                 # Modify NaN values
                 df = df.fillna(0)
@@ -170,5 +229,8 @@ def class_detection():
     plt.savefig("output_graph/classifier_efficiency_normalized.png")
     plt.show()
 
-class_detection()
+if __name__ == "__main__" :
 
+    mediapipe_pie_ratios()
+    # plot_hisogram_test()
+    # class_detection()
