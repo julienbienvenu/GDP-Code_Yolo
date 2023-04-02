@@ -1,6 +1,6 @@
 # import subprocess
 
-# output = subprocess.check_output(['python', 'Classifier.py'])
+# output = subprocess.check_output(['python', 'Pose Classification/Classifier.py'])
 # print(output.decode('utf-8'))
 
 # This code mainly divides the data into training data and test data
