@@ -294,6 +294,63 @@ class FCNN_Model():
         plt.savefig('output_graph/models_comparisons.png')
         plt.show()
 
+    def train_parameters(self, epochs = 50):
+
+        # Reshape X
+        self.X_train = np.reshape(self.X_train, (self.X_train.shape[0], -1))
+        self.X_test = np.reshape(self.X_test, (self.X_test.shape[0], -1))
+
+        # transform y to a binary matrix using one-hot encoding
+        self.y_train = y_train = np.argmax(self.y_train, axis=1)
+        self.y_test = y_train = np.argmax(self.y_test, axis=1)
+
+        # Define parameter values to test
+        lr_params = [0.001, 0.01, 0.1]
+        rf_params = [10, 50, 100]
+        dt_params = [2, 4, 6]
+
+        # Define model dictionary with different parameter values
+        models = {
+            'Logistic Regression': [LogisticRegression(class_weight='balanced', max_iter=epochs, C=c) for c in lr_params],
+            'Random Forest': [RandomForestClassifier(class_weight='balanced', n_estimators=n) for n in rf_params],
+            'Decision Tree': [DecisionTreeClassifier(class_weight='balanced', max_depth=d) for d in dt_params],
+        }
+
+        # Train and evaluate models for each parameter value
+        accuracies = {}
+        for name, model_list in models.items():
+            accs = []
+            for i, model in enumerate(model_list):
+                model.fit(self.X_train, self.y_train)
+                acc = model.score(self.X_test, self.y_test)
+                accs.append(acc)
+            accuracies[name] = accs
+
+        # Plot histograms for each model and parameter
+        
+        for i, (name, accs) in enumerate(accuracies.items()):
+            fig, axs = plt.subplots(1, len(lr_params), figsize=(15, 10))
+            for j, acc in enumerate(accs):
+                if len(models) > 1:
+                    axs[j].bar(range(len(accs)), accs)
+                    axs[j].set_xticks(range(len(accs)))
+                    axs[j].set_xticklabels([str(p) for p in lr_params])
+                    axs[j].set_xlabel('Parameter')
+                    axs[j].set_ylabel('Accuracy')
+                    axs[j].set_title(f'{name} (Param={lr_params[j]})')
+                else:
+                    axs[j].bar(range(len(accs)), accs)
+                    axs[j].set_xticks(range(len(accs)))
+                    axs[j].set_xticklabels([str(p) for p in lr_params])
+                    axs[j].set_xlabel('Parameter')
+                    axs[j].set_ylabel('Accuracy')
+                    axs[j].set_title(f'{name} (Param={lr_params[j]})')
+
+            plt.tight_layout()
+            plt.savefig(f'output_graph/Angles_detection/models_features_{name}.png')
+            plt.show()
+
+
 def test_batch():
 
     fcnn = FCNN_Model()
@@ -329,6 +386,6 @@ if __name__ == '__main__':
     # Load X,y inside class definition    
     fcnn = FCNN_Model()
     # fcnn.train(epochs = 100, batch_size = 8)
-    fcnn.train_others(epochs = 200)
+    fcnn.train_parameters(epochs = 100)
 
     # test_batch()
