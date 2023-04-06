@@ -8,8 +8,10 @@ import sys
 import pandas as pd
 import glob
 import torch
+from keras.models import load_model
 
 from PoseEstimation.pipe_detection import PipeDetection
+from interface import Interface
 
 class Frame():
 
@@ -141,7 +143,8 @@ class Video():
 
     def __init__(self, filename = 'None', output_folder = "image_to_detect/", 
                  writing_folder = 'None',
-                 clean_txt = False, clean_jpg = False):
+                 clean_txt = False, clean_jpg = False,
+                 interface = Interface()):
         
         self.filename = filename        
         self.output_folder = output_folder + '/' + writing_folder + '/'
@@ -167,6 +170,12 @@ class Video():
         # 10 Frames per second
         fps = cap.get(cv2.CAP_PROP_FPS)
         interval = 1/fps*10
+
+        # Load model
+        self.model = load_model('DNN_model.h5')
+
+        # Add interface
+        self.interface = interface
 
         # Loop through the frames in the video
         while cap.isOpened():
@@ -240,10 +249,20 @@ class Video():
             self.y1 = 0
             self.y2 = int(self.frames[0].img_height)
 
+        # Resize the video to this shape and detect the posture
+        self.posture()
+
+        # Classify the movement
+        self.classify()
+
+        # Kill the thread
+        return
+
     def show(self):
         print(f'Video bbox : (xmin, xmax, ymin, ymax) = ({self.x1}, {self.x2}, {self.y1}, {self.y2})')
 
     def update(self, nb_frames = 1):
+        
         # We remove the last x frames and add the new x frames
         for i in range(nb_frames):
             # Check if the file exists
@@ -252,19 +271,23 @@ class Video():
                 # Remove the file
                 os.remove(file_path)
 
-        self.frames = self.frames[nb_frames:]        
+        self.frames = self.frames[nb_frames:]
 
-        # Add the new frames
-        # depend on the input
+    def classify(self):
 
-        # We perform a new detection
-        self.detection()
+        # Predict with the model
+        output = self.model.predict(self.video_angles)
+        value = np.argmax(output, axis=1)
 
-    def posture(self):
+        # Generate Kafka exception
+        self.interface.json_output(value)
+
+
+    def posture(self, write_files = False):
 
         # List of values
-        video_angles = []
-        video_norm = []
+        self.video_angles = []
+        # self.video_norm = []
 
         # Output folders
         output_angles = "image_to_detect/angles/"
@@ -281,15 +304,17 @@ class Video():
 
             # Call Posture function
             pipe = PipeDetection(frame.frame, fileroot = frame.fileroot.split("\\")[-1].split(".")[0])
-            video_angles.append(pipe.get_angles())
-            video_norm.append(pipe.get_landmarks_normalized())
+            self.video_angles.append(pipe.get_angles())
+            # self.video_norm.append(pipe.get_landmarks_normalized())
 
-        # Write TXT norm
-        m_norm = np.array(video_norm)
-        m_norm = m_norm.reshape(-1, m_norm.shape[-1])
-        np.savetxt(os.path.join(output_norm, self.filename.split("\\")[-1].split(".")[0] + '.txt'), m_norm, fmt='%.4f') 
+        if write_files:
 
-        # Write TXT angles
-        m_angles = np.array(video_angles)
-        m_angles = m_angles.reshape(-1, m_angles.shape[-1])
-        np.savetxt(os.path.join(output_angles, self.filename.split("\\")[-1].split(".")[0] + '.txt'), m_angles, fmt='%.4f')
+            # Write TXT norm
+            m_norm = np.array(self.video_norm)
+            m_norm = m_norm.reshape(-1, m_norm.shape[-1])
+            np.savetxt(os.path.join(output_norm, self.filename.split("\\")[-1].split(".")[0] + '.txt'), m_norm, fmt='%.4f') 
+
+            # Write TXT angles
+            m_angles = np.array(self.video_angles)
+            m_angles = m_angles.reshape(-1, m_angles.shape[-1])
+            np.savetxt(os.path.join(output_angles, self.filename.split("\\")[-1].split(".")[0] + '.txt'), m_angles, fmt='%.4f')

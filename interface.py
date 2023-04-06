@@ -7,10 +7,18 @@ class Interface:
     def __init__(self, rtsp_url, output_path='./video/Videos_of_gestures.avi'):
         self.rtsp_url = rtsp_url
         self.output_path = output_path
-        self.eventID = random.randint(100000, 999999)
+        self.eventID = random.randint(100, 999)
 
     # Perform the actual video recording and saving operation
     def video_input(self, rstp_url = ''):
+
+        # Modify the function so that we return the last frame of the video input
+        # Return None if we detect nothing
+        #
+        #
+        #
+        #
+        # END
 
         if rstp_url != '':
             self.rtsp_url = rstp_url
@@ -58,7 +66,13 @@ class Interface:
             "ClassName": class_names[num_class - 1]
         }
 
-        return json.dumps(json_obj)
+        json_to_send = json.dumps(json_obj)
+
+        # HERE add Flask code for Kafka 
+        #
+        # 
+        #
+        # End
     
 if __name__ == '__main__' :
 

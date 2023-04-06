@@ -10,6 +10,9 @@ from frame import Frame, Video
 import glob
 from multiprocessing import Pool
 from tqdm import tqdm
+import copy
+import threading
+from interface import Interface
 
 from labels import convert_xml_to_txt
 
@@ -35,7 +38,7 @@ def main_generate_txt_posture():
     
     print('Hello')
 
-def main():
+def main_train():
     # This function take a video as input and perform the detection on all its frames
     # No update for the moment
 
@@ -74,6 +77,37 @@ def run_detection_list(folders):
 
         del input_video
 
+def main():
+
+    # Create Interface instance
+    interface = Interface()
+
+    # Create Video instance
+    video = Video(interface = interface)
+
+    # Iteration initialisation
+    ite = 0
+
+    while True:
+
+        # Simulating frame input, replace this with your actual frame input logic
+        frame = interface.video_input()
+
+        if frame is not None:
+
+            # Ite increasing
+            ite = (ite + 1) % 999
+
+            # Run Video.update(frame) on the main thread
+            video.update(frame)
+
+            # Copy the Video object and update the eventID interface
+            video_copy = copy.deepcopy(video)
+            video_copy.interface.eventID = video_copy.interface.eventID * 1000 + ite
+
+            # Create a new thread to run Video.detect()
+            detect_thread = threading.Thread(target = video_copy.detection())
+            detect_thread.start()
 
 if __name__ == "__main__" :
     

@@ -6,9 +6,9 @@ import os
 def video_augmentation():  
 
     # Set parameters for augmentation
-    rotation_angles = [30, 60]
-    brightness_reductions = [25, 50, 75]
-    rain_strengths = [0.25, 0.50]
+    rotation_angles = [60]
+    brightness_reductions = [505]
+    rain_strengths = [0.50]
 
     # Set the path to the folder containing the videos
     folders = glob.glob(os.path.join("dataset/", '**/*.mp4'), recursive=True)
