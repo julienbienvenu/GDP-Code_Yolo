@@ -1,4 +1,5 @@
 # Main file
+import time
 import cv2
 import os
 import numpy as np
@@ -55,27 +56,35 @@ def main_train():
 
     print(len(folders))
 
-    # We use 4 threads
-    detection_folders = [f'detection_{i+1}' for i in range(8)]
+    run_detection_list(folders)
 
-    sublist_size = (len(folders) + 7) // 8
-    result_folders = [(folders[i*sublist_size:(i+1)*sublist_size], i) for i in range(8)]
+    # # We use 4 threads
+    # detection_folders = [f'detection_{i+1}' for i in range(8)]
 
-    with Pool(processes = 4) as pool:
-        results = list(tqdm(pool.imap(run_detection_list, result_folders), total=len(result_folders)))
+    # sublist_size = (len(folders) + 7) // 8
+    # result_folders = [(folders[i*sublist_size:(i+1)*sublist_size], i) for i in range(8)]
+
+    # with Pool(processes = 4) as pool:
+    #     results = list(tqdm(pool.imap(run_detection_list, result_folders), total=len(result_folders)))
 
 
 def run_detection_list(folders):
 
-    folder_list, ite = folders
+    folder_list, ite = folders, 1
+    l = len(folder_list)
+    start = time.time()
 
-    for folder in folder_list:
+    for i in range(l):
+
+        folder = folder_list[i]
+        r = round((i+1)/l * 100, 4)
+        print(f"{r} %")
 
         input_video = Video(filename = folder, clean_jpg = True, writing_folder = f'detection_{ite+1}')
-        input_video.detection(yolo = False)
-        input_video.posture()
+        input_video.detection(yolo = False, loading_data=True)
+        input_video.posture(write_files_angles=True)
 
-        del input_video
+        # del input_video
 
 def main():
 
@@ -111,7 +120,7 @@ def main():
 
 if __name__ == "__main__" :
     
-    main()
+    main_train()
 
     # pose = PoseDetection()
     # pose.generate_txt()

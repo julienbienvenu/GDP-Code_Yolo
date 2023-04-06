@@ -4,7 +4,7 @@ import random
 
 class Interface:
     # Receive RTSP_URL and output path as parameters
-    def __init__(self, rtsp_url, output_path='./video/Videos_of_gestures.avi'):
+    def __init__(self, rtsp_url = '', output_path='./video/Videos_of_gestures.avi'):
         self.rtsp_url = rtsp_url
         self.output_path = output_path
         self.eventID = random.randint(100, 999)

@@ -172,7 +172,7 @@ class Video():
         interval = 1/fps*10
 
         # Load model
-        self.model = load_model('DNN_model.h5')
+        #self.model = load_model('models/DNN_model.h5')
 
         # Add interface
         self.interface = interface
@@ -226,7 +226,7 @@ class Video():
         for file_path in jpg_files:
             os.remove(file_path)   
 
-    def detection(self, yolo = True):
+    def detection(self, yolo = True, loading_data = False):
 
         if yolo :
 
@@ -249,14 +249,15 @@ class Video():
             self.y1 = 0
             self.y2 = int(self.frames[0].img_height)
 
-        # Resize the video to this shape and detect the posture
-        self.posture()
+        if not loading_data:
+            # Resize the video to this shape and detect the posture
+            self.posture()
 
-        # Classify the movement
-        self.classify()
+            # Classify the movement
+            self.classify()
 
-        # Kill the thread
-        return
+            # Kill the thread
+            return
 
     def show(self):
         print(f'Video bbox : (xmin, xmax, ymin, ymax) = ({self.x1}, {self.x2}, {self.y1}, {self.y2})')
@@ -283,7 +284,7 @@ class Video():
         self.interface.json_output(value)
 
 
-    def posture(self, write_files = False):
+    def posture(self, write_files_norm = False, write_files_angles = False):
 
         # List of values
         self.video_angles = []
@@ -307,12 +308,14 @@ class Video():
             self.video_angles.append(pipe.get_angles())
             # self.video_norm.append(pipe.get_landmarks_normalized())
 
-        if write_files:
+        if write_files_norm:
 
             # Write TXT norm
             m_norm = np.array(self.video_norm)
             m_norm = m_norm.reshape(-1, m_norm.shape[-1])
             np.savetxt(os.path.join(output_norm, self.filename.split("\\")[-1].split(".")[0] + '.txt'), m_norm, fmt='%.4f') 
+
+        if write_files_angles :
 
             # Write TXT angles
             m_angles = np.array(self.video_angles)
