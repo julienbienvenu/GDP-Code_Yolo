@@ -29,43 +29,7 @@ def get_avi():
 
     return files
 
-#Create the .txt files for Yolov7
-def create_txt(path):
 
-    paths = [path+"/"+f for f in os.listdir(path) if f.endswith(".jpg")]
-    
-    for i in range(len(paths)):
-
-        if paths[i][11] != "0":
-            np.savetxt("data_labels/" + paths[i][9:-4]+'.txt', np.column_stack(np.array([int(paths[i][11]), 0.5, 0.5, 1.0, 1.0])), newline = " ", fmt='%i %f %f %f %f')
-        else :
-            np.savetxt("data_labels/" + paths[i][9:-4]+'.txt', np.column_stack(np.array([10, 0.5, 0.5, 1.0, 1.0])), newline = " ", fmt='%i %f %f %f %f')
-
-        print(f"Done for {i}/{len(paths)}")
-
-#Generate proper datasets for Yolov7
-def send_to_yolo():
-    
-    dst_train = "yolov7/data/train/"
-    dst_test = "yolov7/data/val/"
-
-    image_files = ["data_img/"+f for f in os.listdir("data_img") if f.endswith(".jpg")]
-    random.shuffle(image_files)
-
-    train_list = image_files[:int(0.75*len(image_files))]
-    test_list = image_files[int(0.75*len(image_files)):]
-
-    for img in test_list:
-        shutil.move(img, dst_test + img[9:])
-        shutil.move("data_labels/" + img[9:-4]+".txt", dst_test + img[9:-4]+".txt")
-
-    print("0.25 achieve")
-
-    for img in train_list:
-        shutil.move(img, dst_train + img[9:])
-        shutil.move("data_labels/" + img[9:-4]+".txt", dst_train + img[9:-4]+".txt")    
-
-    print('Done')
 
 def main_generate_txt_posture():
     
@@ -94,7 +58,7 @@ def main():
     sublist_size = (len(folders) + 7) // 8
     result_folders = [(folders[i*sublist_size:(i+1)*sublist_size], i) for i in range(8)]
 
-    with Pool(processes = 8) as pool:
+    with Pool(processes = 4) as pool:
         results = list(tqdm(pool.imap(run_detection_list, result_folders), total=len(result_folders)))
 
 

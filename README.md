@@ -35,8 +35,11 @@ http://groups.csail.mit.edu/mug/natops/archive/
 Nightmare
 - .sub file ?
 
-## Model
+## Model (Yolo + MediaPipe + Classifier)
 We create a 3 step model :
+
+Diabetic classifier
+https://ieeexplore.ieee.org/abstract/document/9451724
 
 ### Yolov7
 Based on class classification and labelization
@@ -51,6 +54,8 @@ Use the following classes :
 
 The objective of this algorithm is to detect the marshalls.
 
+To create the Yolo dataset, we have to run the following command : python labels.py
+
 ### PoseEstimation
 MediaPipe
 
@@ -62,4 +67,15 @@ Based on a F-CNN model (not pre-weighted), design not already defined :
 - Input : Matrix PoseEstimationPoints * length (normalized by human size)
 - Output : Classfication (softmax)
 
+-> to much time to compute
+
+## Model (OpticalFlow + Classifier)
+
+### Optical Flow
+We try different scraping period for the optical flow, the idea is to get an accuracy based on time of loading
+
 ## Limitations
+
+## Add infos
+To get requirements
+pipreqs . --encoding iso-8859-1

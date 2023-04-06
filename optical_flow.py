@@ -12,6 +12,7 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.neural_network import MLPClassifier
 from sklearn.svm import SVC
 import time
+import os
 
 from sklearn.tree import DecisionTreeClassifier
 
@@ -114,26 +115,28 @@ class OpticalFlow():
         plt.savefig('output_graph/dataset_after_augmentation.png')
         plt.show()
 
-    def generate(self):
+    def generate(self, directory = 'opt_flow', duration = 1, nb_frames = 10, folders = []):
 
         # Define resize parameters
         width = 640
         height = 360
+        time_avg = 0
 
-        path = "dataset/"
-        folders = glob.glob(os.path.join(path, '**/*.mp4'), recursive=True)
+        if len(folders) == 0:
+            path = "dataset/"
+            folders = glob.glob(os.path.join(path, '**/*.mp4'), recursive=True)
 
-        path_output = "image_to_detect/"
-        folders_output = glob.glob(os.path.join(path_output, 'opt_flow/direction/*.txt'), recursive=True)
-        folders_output = [file.split('\\')[-1].split('.')[0] for file in folders_output]
+            path_output = "image_to_detect/"
+            folders_output = glob.glob(os.path.join(path_output, f'{directory}_{duration}_{nb_frames}/direction/*.txt'), recursive=True)
+            folders_output = [file.split('\\')[-1].split('.')[0] for file in folders_output]
 
-        dataset_size = len(folders_output)
+            dataset_size = len(folders_output)
 
-        for file in folders[:]:
-            if file.split('\\')[-1].split('.')[0] in folders_output:
-                folders.remove(file)
+            for file in folders[:]:
+                if file.split('\\')[-1].split('.')[0] in folders_output:
+                    folders.remove(file)
 
-        print(f'Files to process : {len(folders)} ({round((len(folders)/dataset_size), 2)} %)')
+            print(f'Files to process : {len(folders)} ({round((len(folders)/dataset_size), 2)} %)')
 
         for file in folders :
             
@@ -144,8 +147,9 @@ class OpticalFlow():
 
             # Set the frame rate to 30 frames per second
             frame_rate = cap.get(cv2.CAP_PROP_FPS)
-            duration = 1  # Duration of the optical flow in seconds
+            duration = duration  # Duration of the optical flow in seconds
             num_frames = int(frame_rate * duration)
+            interval = int(frame_rate / nb_frames)  # Number of frames to skip between each optical flow calculation
 
             # Convert first frame to grayscale
             prvs = cv2.cvtColor(frame1, cv2.COLOR_BGR2GRAY)
@@ -156,6 +160,8 @@ class OpticalFlow():
 
             for i in range(num_frames):
                 # Extract next frame
+                for j in range(interval - 1):
+                    ret, _ = cap.read()
                 ret, frame2 = cap.read()
                 if not ret:
                     break
@@ -182,17 +188,19 @@ class OpticalFlow():
 
             # Save magnitude and direction as text files
             name = file.split('\\')[-1].split('.')[0]
-            np.savetxt('image_to_detect/opt_flow/magnitude/' + name + '.txt', mag.flatten())
-            np.savetxt('image_to_detect/opt_flow/direction/' + name + '.txt', ang.flatten())
+            np.savetxt(f'image_to_detect/{directory}_{duration}_{nb_frames}/magnitude/' + name + '.txt', mag.flatten())
+            np.savetxt(f'image_to_detect/{directory}_{duration}_{nb_frames}/direction/' + name + '.txt', ang.flatten())
 
             cap.release()
 
             elapsed_time = time.time() - start
             print(f'{file} : {elapsed_time:.2f} s.')
 
-    def load_data(self):
+        self.time = time_avg/len(folders)
 
-        data_dir = 'image_to_detect/opt_flow/'
+    def load_data(self, directory = 'opt_flow'):
+
+        data_dir = 'image_to_detect/' + directory + '/'
         
         # Loop over each video and extract features and labels
         X_list = []
@@ -221,23 +229,23 @@ class OpticalFlow():
         self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
         # Add data augmentation
-        self.data_augmentation()
+        # self.data_augmentation()
 
-    def train(self):
+    def train(self, directory = 'opt_flow'):
 
-        self.load_data()
+        self.load_data(directory=directory)
 
-        epochs = 50    
+        epochs = 20  
 
         print('Running models ...')
         # Define the preweighted models
         models = {
             'Logistic Regression': LogisticRegression(class_weight='balanced', max_iter=epochs),
-            'Random Forest': RandomForestClassifier(class_weight='balanced', n_estimators=epochs),
-            'SVM': SVC(class_weight='balanced', max_iter=epochs),
-            'Naive Bayes': GaussianNB(),
+            # 'Random Forest': RandomForestClassifier(class_weight='balanced', n_estimators=epochs),
+            # 'SVM': SVC(class_weight='balanced', max_iter=epochs),
+            # 'Naive Bayes': GaussianNB(),
             'Gradient Boosting': GradientBoostingClassifier(n_estimators=epochs),
-            'Decision Tree': DecisionTreeClassifier(class_weight='balanced', max_depth=10),
+            'Decision Tree': DecisionTreeClassifier(class_weight='balanced', max_depth=3),
             # 'KNN': KNeighborsClassifier(weights='distance', n_neighbors=10),
             # 'Multi-layer Perceptron': MLPClassifier(hidden_layer_sizes=(32, 16), max_iter=epochs),
             # 'AdaBoost': AdaBoostClassifier(n_estimators=epochs)
@@ -259,11 +267,56 @@ class OpticalFlow():
         ax.set_xticklabels(models.keys(), rotation=45, ha='right')
         plt.title(f"Accuracy Scores for {epochs} epochs")
         plt.tight_layout()
-        plt.savefig('output_graph/Optical_Flow/models_comparisons.png')
-        plt.show()
+        plt.savefig(f'output_graph/Optical_Flow/{directory}_t_{self.time}.png')
+        plt.clf()
+
+
+def flow_and_generate_period():
+
+    # We create a repository with 10 flows per class for different time period 
+    # save the average computation time
+
+    flow = OpticalFlow()
+    
+    # Parameters
+    timestamps = [1, 2, 3]
+    precisions = [3, 6, 9, 12]
+
+    # Generate the folders
+    path = "dataset/"
+    folders = glob.glob(os.path.join(path, '**/*.mp4'), recursive=True)
+
+    iterations = np.zeros(15)
+
+    for file in folders[:]:
+        if iterations[int(file.split('\\')[-1].split('.')[0].split('_')[-2]) - 1] >= 5:
+            folders.remove(file)
+        else :
+            iterations[int(file.split('\\')[-1].split('.')[0].split('_')[-2]) - 1] += 1
+
+    # Loop
+    for time in timestamps:
+        for precision in precisions:
+
+            try :
+                folder_name = f"image_to_detect/opt_flow_{time}_{precision}"
+                os.makedirs(folder_name)
+                os.makedirs(os.path.join(folder_name, "direction"))
+                os.makedirs(os.path.join(folder_name, "magnitude"))            
+
+                flow.generate(duration = time, nb_frames = precision, folders = folders)
+                flow.train(directory = f'opt_flow_{time}_{precision}')
+            except :
+                flow.train(directory = f'opt_flow_{time}_{precision}')
+
+def replace_nan_inf(x):
+    inf_indices = np.isinf(x)
+    x[inf_indices] = 10
+    x = np.nan_to_num(x)
+    return x
 
 if __name__ == '__main__':
 
-    flow = OpticalFlow()
+    flow_and_generate_period()
     # flow.generate()
-    flow.train()
+    # flow.train()

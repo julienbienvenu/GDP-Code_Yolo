@@ -1,3 +1,4 @@
+import time
 from keras.models import Sequential
 from keras.layers import LSTM, Dense, Flatten, BatchNormalization, Dropout, Conv2D, MaxPooling2D
 import os
@@ -18,8 +19,14 @@ from sklearn.svm import SVC
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.neural_network import MLPClassifier
 from xgboost import XGBClassifier
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, confusion_matrix
 import matplotlib.pyplot as plt
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.metrics import accuracy_score
+from keras.datasets import mnist
+from keras.utils import to_categorical
+from keras import layers, models
 
 
 import numpy as np
@@ -43,15 +50,14 @@ class FCNN_Model():
             # model.add(Dense(15, activation='softmax'))
 
             model = Sequential()
-            model.add(LSTM(14, input_shape=(14, 4), return_sequences=True)) # add LSTM layer with 32 units
+            model.add(LSTM(14, input_shape=(14, 4), return_sequences=True))
             model.add(BatchNormalization())
             model.add(Dropout(0.8))
-            model.add(LSTM(16, return_sequences=True, kernel_regularizer=L2(0.01))) # add another LSTM layer with 16 units
+            model.add(LSTM(16, return_sequences=True, kernel_regularizer=L2(0.01)))
             model.add(BatchNormalization())
             model.add(Dropout(0.8))
             model.add(LSTM(16, return_sequences=False))
             model.add(Dense(15, activation='softmax'))
-
             print(model.summary())
 
             # Compile the model
@@ -136,7 +142,7 @@ class FCNN_Model():
 
         # Determine the maximum number of instances for each class in the augmented dataset
         # We multiply the dataset by 3
-        max_class_count = max(class_counts.values()) * 50
+        max_class_count = max(class_counts.values()) * 5
 
         for label, count in class_counts.items():
             # Add the original matrices to the new list
@@ -178,13 +184,12 @@ class FCNN_Model():
 
         # Plot a histogram to verify the number of instances for each class in the augmented dataset
         print(class_indices)
-        plt.hist(class_indices, bins=len(class_counts))
-        plt.xticks(list(class_counts.keys()))
+        plt.hist(class_indices, bins=15)
+        plt.xticks([i+1 for i in range(15)])
         plt.xlabel('Class')
         plt.ylabel('Number of Instances')
         plt.title('Histogram of Classes in Dataset')
         plt.savefig('output_graph/dataset_before_augmentation.png')
-        plt.show()
 
         # Convert one-hot encoded labels to class indices
         class_indices = np.argmax(self.y_train, axis=1)
@@ -197,14 +202,14 @@ class FCNN_Model():
             class_counts[label] += 1
 
         # Update the histogram with the new counts
-        plt.clf()
-        plt.hist(class_indices, bins=len(class_counts))
-        plt.xticks(list(class_counts.keys()))
+        plt.clf()        
+        plt.hist(class_indices, bins=15)
+        plt.xticks([i+1 for i in range(15)])
         plt.xlabel('Class')
         plt.ylabel('Number of Instances')
         plt.title('Histogram of Classes in Augmented Dataset')
         plt.savefig('output_graph/dataset_after_augmentation.png')
-        plt.show()
+        plt.clf()
 
     def load_model(self):
 
@@ -251,7 +256,7 @@ class FCNN_Model():
     def predict(self, X):
         print(self.model.predict(X))
 
-    def train_others(self, epochs = 25):  
+    def train_others(self, epochs = 25):          
 
         # Reshape X
         self.X_train = np.reshape(self.X_train, (self.X_train.shape[0], -1))
@@ -266,22 +271,121 @@ class FCNN_Model():
             'Logistic Regression': LogisticRegression(class_weight='balanced', max_iter=epochs),
             'Random Forest': RandomForestClassifier(class_weight='balanced', n_estimators=epochs),
             'SVM': SVC(class_weight='balanced', max_iter=epochs),
-            # 'Naive Bayes': GaussianNB(),
-            # 'Gradient Boosting': GradientBoostingClassifier(n_estimators=epochs),
+            'Naive Bayes': GaussianNB(),
+            'Gradient Boosting': GradientBoostingClassifier(n_estimators=epochs),
             'Decision Tree': DecisionTreeClassifier(class_weight='balanced', max_depth=10),
-            # 'KNN': KNeighborsClassifier(weights='distance', n_neighbors=10),
-            # 'Multi-layer Perceptron': MLPClassifier(hidden_layer_sizes=(32, 16), max_iter=epochs),
-            # 'AdaBoost': AdaBoostClassifier(n_estimators=epochs),
-            # 'XGBoost': XGBClassifier(n_estimators=epochs, max_depth=10, objective='multi:softmax', num_class=15)
+            'KNN': KNeighborsClassifier(weights='distance', n_neighbors=10),
+            'Multi-layer Perceptron': MLPClassifier(hidden_layer_sizes=(32, 16), max_iter=epochs),
+            'AdaBoost': AdaBoostClassifier(n_estimators=epochs),
+            'XGBoost': XGBClassifier(n_estimators=epochs, max_depth=10, objective='multi:softmax', num_class=15)
         }
+
+        self.plot(models, epochs, name = 'generic_models')
+
+    def train_created_models(self, epochs = 25):
+
+        self.X_train = np.reshape(self.X_train, (self.X_train.shape[0], self.X_train.shape[1], self.X_train.shape[2], 1))
+        self.X_test = np.reshape(self.X_test, (self.X_test.shape[0], self.X_test.shape[1], self.X_test.shape[2], 1))
+
+        print(self.X_train.shape)
+
+        # Define the CNN architecture
+        cnn_model = Sequential([
+            layers.Conv2D(filters=56, kernel_size=(3, 3), activation='relu', input_shape=(14, 4, 1), padding='same'),
+            layers.MaxPooling2D(pool_size=(2, 2)),
+            layers.Conv2D(filters=56, kernel_size=(3, 3), activation='relu', padding='same'),
+            layers.MaxPooling2D(pool_size=(2, 2)),
+            layers.Flatten(),
+            layers.Dense(units=28, activation='relu'),
+            layers.Dense(units=15, activation='softmax')
+        ])
+
+        cnn_model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+
+        # Define the model
+        dnn_model = Sequential([
+            Dense(56, activation='relu', input_shape=(14, 4)),
+            Dropout(0.5),
+            Dense(56, activation='relu'),
+            Dropout(0.5),
+            Dense(15, activation='softmax')
+        ])
+
+        dnn_model.compile(optimizer='adam',loss='categorical_crossentropy', metrics=['accuracy'])
+
+        # # Define the RNN architecture
+        # rnn_model = Sequential([
+        #     layers.TimeDistributed(Dense(units=32, activation='relu'), input_shape=(None, 14, 4, 1)),
+        #     layers.SimpleRNN(units=32),
+        #     layers.Dense(units=15, activation='softmax')
+        # ])
+        # rnn_model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+
+        lstm_model = Sequential()
+        lstm_model.add(LSTM(56, input_shape=(14, 4), return_sequences=True))
+        lstm_model.add(BatchNormalization())
+        lstm_model.add(Dropout(0.8))
+        lstm_model.add(LSTM(56, return_sequences=True, kernel_regularizer=L2(0.01)))
+        lstm_model.add(BatchNormalization())
+        lstm_model.add(Dropout(0.8))
+        lstm_model.add(LSTM(28, return_sequences=False))
+        lstm_model.add(Dense(15, activation='softmax'))
+
+        # Compile the model
+        lstm_model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+
+        # Models
+        models = {
+            "CNN" : cnn_model,
+            # "RNN" : rnn_model,
+            # "LSTM" : lstm_model,
+            # "DNN" : dnn_model
+        }
+        
+        self.plot(models, epochs, name = 'cnn_lstm_rnn')
+
+    def plot(self, models, epochs, name = ''):
 
         # Train and evaluate each model for X epochs
         scores = []
+        times = []
+
         for name, model in models.items():
-            model.fit(self.X_train, self.y_train)
-            y_pred = model.predict(self.X_test)
-            score = accuracy_score(self.y_test, y_pred)
+            start_time = time.time()
+
+            try :
+                history = model.fit(self.X_train, self.y_train, validation_data=(self.X_test, self.y_test), epochs = epochs)            
+                y_pred = model.predict(self.X_test)
+
+                plt.plot(history.history['accuracy'])
+                plt.plot(history.history['val_accuracy'])
+                plt.title('model accuracy')
+                plt.ylabel('accuracy')
+                plt.xlabel('epoch')
+                plt.legend(['train', 'val'], loc='upper left')
+                plt.savefig(f'output_graph/Angles_detection/accuracy_{name}.png')
+                plt.clf()
+
+            except :
+
+                model.fit(self.X_train, self.y_train)            
+                y_pred = model.predict(self.X_test)
+                
+            score = accuracy_score(np.argmax(self.y_test, axis=1), np.argmax(y_pred, axis=1))
             scores.append(score)
+            times.append(time.time() - start_time)
+            cm = confusion_matrix(np.argmax(self.y_test, axis=1), np.argmax(y_pred, axis=1))                
+
+            plt.imshow(cm, interpolation='nearest', cmap=plt.cm.Blues)
+            plt.colorbar()
+            plt.xticks(range(15), [i+1 for i in range(15)], rotation=45)
+            plt.yticks(range(15), [i+1 for i in range(15)])
+            plt.xlabel('Predicted label')
+            plt.ylabel('True label')
+            plt.savefig(f'output_graph/Angles_detection/cm_{name}.png')
+            # save_model(self.model, f'PoseEstimation/fcnn_batch{batch_size}.h5')
+            plt.clf()
+
             print(f"{name}: {score}")
 
         # Plot the results in a histogram
@@ -291,8 +395,19 @@ class FCNN_Model():
         ax.set_xticklabels(models.keys(), rotation=45, ha='right')
         plt.title(f"Accuracy Scores for {epochs} epochs")
         plt.tight_layout()
-        plt.savefig('output_graph/models_comparisons.png')
+        plt.savefig(f'output_graph/Angles_detection/{name}_acc.png')
         plt.show()
+
+        # Plot the results in a histogram
+        fig, ax = plt.subplots()
+        ax.bar(models.keys(), times)
+        ax.set_ylabel('Time')
+        ax.set_xticklabels(models.keys(), rotation=45, ha='right')
+        plt.title(f"Accuracy Scores for {epochs} epochs")
+        plt.tight_layout()
+        plt.savefig(f'output_graph/Angles_detection/{name}_time.png')
+        plt.show()
+
 
     def train_parameters(self, epochs = 50):
 
@@ -385,7 +500,7 @@ if __name__ == '__main__':
 
     # Load X,y inside class definition    
     fcnn = FCNN_Model()
-    # fcnn.train(epochs = 100, batch_size = 8)
-    fcnn.train_parameters(epochs = 100)
+    fcnn.train_others(epochs = 1)
+    # fcnn.train_created_models(epochs = 25)
 
     # test_batch()
