@@ -74,7 +74,9 @@ def run_detection_list(folders):
     l = len(folder_list)
     start = time.time()
 
-    for i in range(l):
+    print(l)
+
+    for i in range(25):
 
         folder = folder_list[i]
         r = round((i+1)/l * 100, 4)

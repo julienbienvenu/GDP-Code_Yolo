@@ -27,9 +27,9 @@ from sklearn.metrics import accuracy_score
 from keras.datasets import mnist
 from keras.utils import to_categorical
 from keras import layers, models
-
-
 import numpy as np
+
+ADD_RATIO = 3
 
 class FCNN_Model():
 
@@ -125,8 +125,8 @@ class FCNN_Model():
 
         print(f'Data augmentation : start / X : {self.X_train.shape}, y : {self.y_train.shape}')
 
-        max_percent_change = 0.4
-        max_size_change = 0.8
+        max_percent_change = 0.6 #0.4
+        max_size_change = 0.6 #0.8
         new_x_list = []
         new_y_list = []
 
@@ -142,7 +142,7 @@ class FCNN_Model():
 
         # Determine the maximum number of instances for each class in the augmented dataset
         # We multiply the dataset by 3
-        max_class_count = max(class_counts.values()) * 5
+        max_class_count = max(class_counts.values()) * ADD_RATIO
 
         for label, count in class_counts.items():
             # Add the original matrices to the new list
@@ -235,6 +235,14 @@ class FCNN_Model():
 
             # Fill lines
             num_rows_to_add = 14 - df.shape[0]
+
+            # rows_to_concat = []
+            # for i in range(num_rows_to_add):
+            #     row = pd.Series([i, i+1, i+2, i+3], index=df.columns)
+            #     rows_to_concat.append(row)
+
+            # df = pd.concat([df] + rows_to_concat, ignore_index=True)
+
             for i in range(num_rows_to_add):
                 row = [i, i+1, i+2, i+3]  # example data
                 df = df.append(pd.Series(row, index=df.columns), ignore_index=True)
@@ -277,7 +285,7 @@ class FCNN_Model():
             'KNN': KNeighborsClassifier(weights='distance', n_neighbors=10),
             'Multi-layer Perceptron': MLPClassifier(hidden_layer_sizes=(32, 16), max_iter=epochs),
             'AdaBoost': AdaBoostClassifier(n_estimators=epochs),
-            'XGBoost': XGBClassifier(n_estimators=epochs, max_depth=10, objective='multi:softmax', num_class=15)
+            # 'XGBoost': XGBClassifier(n_estimators=epochs, max_depth=10, objective='multi:softmax', num_class=15)
         }
 
         self.plot(models, epochs, name = 'generic_models')
@@ -293,8 +301,10 @@ class FCNN_Model():
         cnn_model = Sequential([
             layers.Conv2D(filters=56, kernel_size=(3, 3), activation='relu', input_shape=(14, 4, 1), padding='same'),
             layers.MaxPooling2D(pool_size=(2, 2)),
+            Dropout(0.3),
             layers.Conv2D(filters=56, kernel_size=(3, 3), activation='relu', padding='same'),
             layers.MaxPooling2D(pool_size=(2, 2)),
+            Dropout(0.3),
             layers.Flatten(),
             layers.Dense(units=28, activation='relu'),
             layers.Dense(units=15, activation='softmax')
@@ -338,7 +348,7 @@ class FCNN_Model():
         models = {
             "CNN" : cnn_model,
             # "RNN" : rnn_model,
-            # "LSTM" : lstm_model,
+            "LSTM" : lstm_model,
             # "DNN" : dnn_model
         }
         
@@ -366,27 +376,50 @@ class FCNN_Model():
                 plt.savefig(f'output_graph/Angles_detection/accuracy_{name}.png')
                 plt.clf()
 
+                score = accuracy_score(np.argmax(self.y_test, axis=1), np.argmax(y_pred, axis=1))
+                scores.append(score)
+                times.append(time.time() - start_time)
+                cm = confusion_matrix(np.argmax(self.y_test, axis=1), np.argmax(y_pred, axis=1))                
+                row_sums = cm.sum(axis=1)
+                col_sums = cm.sum(axis=0)             
+                normalized_cm = cm / row_sums[:, np.newaxis]
+                plt.imshow(normalized_cm, interpolation='nearest', cmap=plt.cm.Blues)
+                plt.colorbar()
+                plt.xticks(range(15), [i+1 for i in range(15)], rotation=45)
+                plt.yticks(range(15), [i+1 for i in range(15)])
+                plt.xlabel('Predicted label')
+                plt.ylabel('True label')
+                plt.title(f'CM {name}')
+                plt.savefig(f'output_graph/Angles_detection/cm_{name}.png')
+                # save_model(self.model, f'PoseEstimation/fcnn_batch{batch_size}.h5')
+                plt.clf()
+
+                print(f"{name}: {score}")
+
             except :
 
                 model.fit(self.X_train, self.y_train)            
                 y_pred = model.predict(self.X_test)
                 
-            score = accuracy_score(np.argmax(self.y_test, axis=1), np.argmax(y_pred, axis=1))
-            scores.append(score)
-            times.append(time.time() - start_time)
-            cm = confusion_matrix(np.argmax(self.y_test, axis=1), np.argmax(y_pred, axis=1))                
+                score = accuracy_score(self.y_test, y_pred)
+                scores.append(score)
+                times.append(time.time() - start_time)
+                cm = confusion_matrix(self.y_test, y_pred)   
+                row_sums = cm.sum(axis=1)
+                col_sums = cm.sum(axis=0)             
+                normalized_cm = cm / row_sums[:, np.newaxis]
+                plt.imshow(normalized_cm, interpolation='nearest', cmap=plt.cm.Blues)
+                plt.colorbar()
+                plt.xticks(range(15), [i+1 for i in range(15)], rotation=45)
+                plt.yticks(range(15), [i+1 for i in range(15)])
+                plt.xlabel('Predicted label')
+                plt.ylabel('True label')
+                plt.title(f'CM {name}')
+                plt.savefig(f'output_graph/Angles_detection/cm_{name}.png')
+                # save_model(self.model, f'PoseEstimation/fcnn_batch{batch_size}.h5')
+                plt.clf()
 
-            plt.imshow(cm, interpolation='nearest', cmap=plt.cm.Blues)
-            plt.colorbar()
-            plt.xticks(range(15), [i+1 for i in range(15)], rotation=45)
-            plt.yticks(range(15), [i+1 for i in range(15)])
-            plt.xlabel('Predicted label')
-            plt.ylabel('True label')
-            plt.savefig(f'output_graph/Angles_detection/cm_{name}.png')
-            # save_model(self.model, f'PoseEstimation/fcnn_batch{batch_size}.h5')
-            plt.clf()
-
-            print(f"{name}: {score}")
+                print(f"{name}: {score}")
 
         # Plot the results in a histogram
         fig, ax = plt.subplots()
@@ -499,9 +532,10 @@ if __name__ == '__main__':
     # sort_angles()
 
     # Load X,y inside class definition    
-    fcnn = FCNN_Model()
-    
-    # fcnn.train_others(epochs = 25)
-    fcnn.train_created_models(epochs = 25)
+    # fcnn = FCNN_Model()    
+    # fcnn.train_others(epochs = 50)
+
+    fcnn = FCNN_Model()    
+    fcnn.train_created_models(epochs = 100)
 
     # test_batch()
