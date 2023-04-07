@@ -5,6 +5,33 @@ import numpy as np
 
 from matplotlib import pyplot as plt
 
+def test():
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    # Generate some example data
+    x = np.linspace(-5, 5, 100)  # Generate 100 x values from -5 to 5
+    y = np.linspace(-5, 5, 100)  # Generate 100 y values from -5 to 5
+    x, y = np.meshgrid(x, y)  # Create a grid of x and y values
+    z = np.sin(np.sqrt(x**2 + y**2))  # Calculate z using a wave-like function
+
+    # Create a 3D plot
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+
+    # Plot the surface
+    surf = ax.plot_surface(x, y, z, cmap='viridis', edgecolor='none')
+
+    # Set labels for the axes
+    ax.set_xlabel('Variable 1')
+    ax.set_ylabel('Variable 2')
+    ax.set_zlabel('Accuracy')
+
+    # Show the plot
+    plt.show()
+
+
+
 def histo():
 
     path = "dataset/"
@@ -33,4 +60,5 @@ def histo():
     plt.show()
 
 if __name__ == '__main__':
-    histo()
+    # histo()
+    test()

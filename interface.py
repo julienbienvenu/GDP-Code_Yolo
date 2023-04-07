@@ -52,6 +52,9 @@ class Interface:
         out.release()
         cv2.destroyAllWindows()
 
+
+        return frame
+    
     def json_output(self, num_class):
 
         class_names = ['Front' for _ in range(15)]
@@ -68,11 +71,11 @@ class Interface:
 
         json_to_send = json.dumps(json_obj)
 
-        # HERE add Flask code for Kafka 
+        # HERE send JSON to KAFKA 
         #
         # 
         #
-        # End
+        # END
     
 if __name__ == '__main__' :
 

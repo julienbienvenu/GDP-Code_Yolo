@@ -33,7 +33,9 @@ ADD_RATIO = 3
 
 class FCNN_Model():
 
-    def __init__(self, X = [], y = [], load_model = False):
+    def __init__(self, X = [], y = [], load_model = False, max_percent_change = 0.6, max_size_change = 0.6, plot = True):
+
+        self.plot_bool = plot
 
         if load_model == False :
 
@@ -81,7 +83,7 @@ class FCNN_Model():
             self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(self.X, self.y, test_size = 0.15, random_state = 42)
 
             # We perform some data augmention
-            self.data_augmentation()
+            self.data_augmentation(max_percent_change, max_size_change)
 
     def train(self, epochs=200, batch_size=32):
 
@@ -121,12 +123,10 @@ class FCNN_Model():
             score = self.model.evaluate(x_test, y_test, batch_size=batch_size, verbose=0)
             print('Fold accuracy:', score[1])
 
-    def data_augmentation(self):
+    def data_augmentation(self, max_percent_change = 0.6, max_size_change = 0.6):
 
         print(f'Data augmentation : start / X : {self.X_train.shape}, y : {self.y_train.shape}')
 
-        max_percent_change = 0.6 #0.4
-        max_size_change = 0.6 #0.8
         new_x_list = []
         new_y_list = []
 
@@ -276,19 +276,22 @@ class FCNN_Model():
 
         # Define the preweighted models
         models = {
-            'Logistic Regression': LogisticRegression(class_weight='balanced', max_iter=epochs),
+            # 'Logistic Regression': LogisticRegression(class_weight='balanced', max_iter=epochs),
             'Random Forest': RandomForestClassifier(class_weight='balanced', n_estimators=epochs),
-            'SVM': SVC(class_weight='balanced', max_iter=epochs),
-            'Naive Bayes': GaussianNB(),
-            'Gradient Boosting': GradientBoostingClassifier(n_estimators=epochs),
-            'Decision Tree': DecisionTreeClassifier(class_weight='balanced', max_depth=10),
-            'KNN': KNeighborsClassifier(weights='distance', n_neighbors=10),
-            'Multi-layer Perceptron': MLPClassifier(hidden_layer_sizes=(32, 16), max_iter=epochs),
-            'AdaBoost': AdaBoostClassifier(n_estimators=epochs),
+            # 'SVM': SVC(class_weight='balanced', max_iter=epochs),
+            # 'Naive Bayes': GaussianNB(),
+            # 'Gradient Boosting': GradientBoostingClassifier(n_estimators=epochs),
+            # 'Decision Tree': DecisionTreeClassifier(class_weight='balanced', max_depth=10),
+            # 'KNN': KNeighborsClassifier(weights='distance', n_neighbors=10),
+            # 'Multi-layer Perceptron': MLPClassifier(hidden_layer_sizes=(32, 16), max_iter=epochs),
+            # 'AdaBoost': AdaBoostClassifier(n_estimators=epochs),
             # 'XGBoost': XGBClassifier(n_estimators=epochs, max_depth=10, objective='multi:softmax', num_class=15)
         }
 
-        self.plot(models, epochs, name = 'generic_models')
+        
+        score = self.plot(models, epochs, name = 'generic_models')
+
+        return score
 
     def train_created_models(self, epochs = 25):
 
@@ -396,6 +399,8 @@ class FCNN_Model():
 
                 print(f"{name}: {score}")
 
+                return score
+
             except :
 
                 model.fit(self.X_train, self.y_train)            
@@ -421,25 +426,28 @@ class FCNN_Model():
 
                 print(f"{name}: {score}")
 
-        # Plot the results in a histogram
-        fig, ax = plt.subplots()
-        ax.bar(models.keys(), scores)
-        ax.set_ylabel('Accuracy')
-        ax.set_xticklabels(models.keys(), rotation=45, ha='right')
-        plt.title(f"Accuracy Scores for {epochs} epochs")
-        plt.tight_layout()
-        plt.savefig(f'output_graph/Angles_detection/{name}_acc.png')
-        plt.show()
+                return score
 
-        # Plot the results in a histogram
-        fig, ax = plt.subplots()
-        ax.bar(models.keys(), times)
-        ax.set_ylabel('Time')
-        ax.set_xticklabels(models.keys(), rotation=45, ha='right')
-        plt.title(f"Accuracy Scores for {epochs} epochs")
-        plt.tight_layout()
-        plt.savefig(f'output_graph/Angles_detection/{name}_time.png')
-        plt.show()
+        if self.plot_bool :
+            # Plot the results in a histogram
+            fig, ax = plt.subplots()
+            ax.bar(models.keys(), scores)
+            ax.set_ylabel('Accuracy')
+            ax.set_xticklabels(models.keys(), rotation=45, ha='right')
+            plt.title(f"Accuracy Scores for {epochs} epochs")
+            plt.tight_layout()
+            plt.savefig(f'output_graph/Angles_detection/{name}_acc.png')
+            plt.show()
+
+            # Plot the results in a histogram
+            fig, ax = plt.subplots()
+            ax.bar(models.keys(), times)
+            ax.set_ylabel('Time')
+            ax.set_xticklabels(models.keys(), rotation=45, ha='right')
+            plt.title(f"Accuracy Scores for {epochs} epochs")
+            plt.tight_layout()
+            plt.savefig(f'output_graph/Angles_detection/{name}_time.png')
+            plt.show()
 
 
     def train_parameters(self, epochs = 50):
@@ -453,9 +461,11 @@ class FCNN_Model():
         self.y_test = y_train = np.argmax(self.y_test, axis=1)
 
         # Define parameter values to test
-        lr_params = [0.001, 0.01, 0.1]
-        rf_params = [10, 50, 100]
-        dt_params = [2, 4, 6]
+        lr_params = [0.001, 0.01, 0.1, 0.2, 0.25]
+        rf_params = [10, 50, 100, 150, 200]
+        dt_params = [2, 4, 6, 8, 10, 20, 30, 50]
+
+        params = ['lr', 'rf', 'dt']
 
         # Define model dictionary with different parameter values
         models = {
@@ -474,29 +484,26 @@ class FCNN_Model():
                 accs.append(acc)
             accuracies[name] = accs
 
-        # Plot histograms for each model and parameter
-        
-        for i, (name, accs) in enumerate(accuracies.items()):
-            fig, axs = plt.subplots(1, len(lr_params), figsize=(15, 10))
-            for j, acc in enumerate(accs):
-                if len(models) > 1:
-                    axs[j].bar(range(len(accs)), accs)
-                    axs[j].set_xticks(range(len(accs)))
-                    axs[j].set_xticklabels([str(p) for p in lr_params])
-                    axs[j].set_xlabel('Parameter')
-                    axs[j].set_ylabel('Accuracy')
-                    axs[j].set_title(f'{name} (Param={lr_params[j]})')
-                else:
-                    axs[j].bar(range(len(accs)), accs)
-                    axs[j].set_xticks(range(len(accs)))
-                    axs[j].set_xticklabels([str(p) for p in lr_params])
-                    axs[j].set_xlabel('Parameter')
-                    axs[j].set_ylabel('Accuracy')
-                    axs[j].set_title(f'{name} (Param={lr_params[j]})')
+        print(accuracies)
 
-            plt.tight_layout()
-            plt.savefig(f'output_graph/Angles_detection/models_features_{name}.png')
-            plt.show()
+        # Plot histograms for each model and parameter
+        fig, axs = plt.subplots(1, len(models), figsize=(15, 10))
+        for i, (name, accs) in enumerate(accuracies.items()):
+            axs[i].bar(range(len(accs)), accs)
+            axs[i].set_xticks(range(len(accs)))
+            if name == 'Logistic Regression':
+                axs[i].set_xticklabels([str(p) for p in lr_params])
+            elif name == 'Random Forest':
+                axs[i].set_xticklabels([str(p) for p in rf_params])
+            elif name == 'Decision Tree':
+                axs[i].set_xticklabels([str(p) for p in dt_params])
+            axs[i].set_xlabel(f'Parameter {params[i]}')
+            axs[i].set_ylabel('Accuracy')
+            axs[i].set_title(name)
+
+        plt.tight_layout()
+        plt.savefig('output_graph/Angles_detection/features/models_features.png')
+        plt.show()
 
 
 def test_batch():
@@ -512,6 +519,37 @@ def test_batch():
     plt.xlabel('epoch')
     plt.legend([str(i) for i in [8, 16, 32, 64, 128, 256]], loc='upper left')
     plt.savefig(f'PoseEstimation/images/accuracy_many_batch.png')
+
+def three_accuracy():
+
+    values = [0.2, 0.4, 0.6, 0.8, 1]
+    score = []
+    percent = []
+    size = []
+
+    for i in values:
+        for j in values:
+
+            fcnn = FCNN_Model(max_percent_change=i, max_size_change=j, plot = False)
+            score.append(fcnn.train_others(epochs = 1))
+            percent.append(i)
+            size.append(j)
+
+    # Create a 3D plot
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+
+    # Plot the data
+    ax.scatter(percent, size, score)
+
+    # Set labels for the axes
+    ax.set_xlabel('max_percent_change')
+    ax.set_ylabel('max_size_change')
+    ax.set_zlabel('Accuracy')
+
+    # Show the plot
+    plt.show()
+
 
 def sort_angles():
 
@@ -535,7 +573,9 @@ if __name__ == '__main__':
     # fcnn = FCNN_Model()    
     # fcnn.train_others(epochs = 50)
 
-    fcnn = FCNN_Model()    
-    fcnn.train_created_models(epochs = 100)
-
+    # fcnn = FCNN_Model()    
+    # fcnn.train_created_models(epochs = 100)
+    # fcnn.train_parameters(epochs = 50)
     # test_batch()
+
+    three_accuracy()
