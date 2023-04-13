@@ -66,7 +66,7 @@ class Interface:
             "SensorId": "Camera1",
             "Priority": 1,
             "ClassNumber": num_class,
-            "ClassName": class_names[num_class - 1]
+            "ClassName": class_names[num_class]
         }
 
         json_to_send = json.dumps(json_obj)

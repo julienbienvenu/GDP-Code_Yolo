@@ -6,6 +6,7 @@ import cv2
 import torch
 import torch.backends.cudnn as cudnn
 from numpy import random
+import numpy as np
 
 from models.experimental import attempt_load
 from utils.datasets import LoadStreams, LoadImages
@@ -14,7 +15,7 @@ from utils.general import check_img_size, check_requirements, check_imshow, non_
 from utils.plots import plot_one_box
 from utils.torch_utils import select_device, load_classifier, time_synchronized, TracedModel
 
-def detect_marshall(source = 'image_to_detect/image.jpg', weights = 'yolov7/best.pt', save_img=False):  
+def detect_marshall(frame = None, weights = 'yolov7/best.pt', save_img=False):  
     
     # Other parameters to modify
     img_size = 640
@@ -23,8 +24,10 @@ def detect_marshall(source = 'image_to_detect/image.jpg', weights = 'yolov7/best
     save_img = False  
     view_img = False
 
-    webcam = source.isnumeric() or source.endswith('.txt') or source.lower().startswith(
-        ('rtsp://', 'rtmp://', 'http://', 'https://'))
+    if frame is None:
+        return [0, 0, 0, 0]
+
+    webcam = isinstance(frame, np.ndarray)
 
     # Directories
     save_dir = Path(increment_path(Path('test/') / 'result', exist_ok=False))  # increment run
@@ -47,7 +50,7 @@ def detect_marshall(source = 'image_to_detect/image.jpg', weights = 'yolov7/best
         model.half()  # to FP16
 
     # Set Dataloader
-    dataset = LoadImages(source, img_size=imgsz, stride=stride)
+    dataset = LoadImages(frame, img_size=imgsz, stride=stride)
 
     # Get names and colors
     names = model.module.names if hasattr(model, 'module') else model.names

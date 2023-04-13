@@ -13,9 +13,11 @@ from multiprocessing import Pool
 from tqdm import tqdm
 import copy
 import threading
+from frame_light import Video_light
 from interface import Interface
 
 from labels import convert_xml_to_txt
+from test import test_video
 
 #Different path
 path_video = "data_video_tr"
@@ -88,6 +90,45 @@ def run_detection_list(folders):
 
         # del input_video
 
+
+def main_test():
+
+    # Create Interface instance
+    interface = Interface()
+
+    # Create Video instance
+    video = Video_light(interface = interface)
+
+    # Start the process
+    print('Start the process')
+
+    # Iteration initialisation
+    ite = 0
+    frames = test_video()
+
+    for frame in frames:
+
+        # Simulating frame input, replace this with your actual frame input logic
+        # frame = interface.video_input()
+
+        if frame is not None:
+
+            # Ite increasing
+            ite = (ite + 1) % 999
+
+            # Run Video.update(frame) on the main thread
+            video.update(frame = frame, ite = ite)
+
+            # Copy the Video object and update the eventID interface
+            # video_copy = copy.deepcopy(video)
+            # video_copy.interface.eventID = video_copy.interface.eventID * 1000 + ite
+
+            video.detection()
+
+            # Create a new thread to run Video.detect()
+            # detect_thread = threading.Thread(target = video_copy.detection())
+            # detect_thread.start()
+
 def main():
 
     # Create Interface instance
@@ -122,7 +163,7 @@ def main():
 
 if __name__ == "__main__" :
     
-    main_train()
+    main_test()
 
     # pose = PoseDetection()
     # pose.generate_txt()

@@ -13,6 +13,9 @@ from keras.models import load_model
 from PoseEstimation.pipe_detection import PipeDetection
 from interface import Interface
 
+# Load model
+CLASSIFIER = load_model('models/Random Forest.h5')
+
 class Frame():
 
     def __init__(self, x1=0, x2=0, y1=0, y2=0, 
@@ -26,10 +29,11 @@ class Frame():
 
         #Infos
         self.filename = filename
-        self.fileroot = fileroot
-        self.directory = directory
+        # self.fileroot = fileroot
+        # self.directory = directory
         self.marshall_signal = marshall_signal #Class
-        self.yolo_name = yolo_name #Class Yolo {Aircraft, Marshaller, Workers}
+        # self.yolo_name = yolo_name #Class Yolo {Aircraft, Marshaller, Workers}
+        self.frame = frame
 
         #Bounding box
         self.x1 = x1
@@ -37,25 +41,25 @@ class Frame():
         self.y1 = y1
         self.y2 = y2
 
-        #Videos parameters
-        self.orientation = orientation #{front, back}
-        self.rain = rain
-        self.wind = wind
-        self.snow = snow
-        self.fog = fog
-        self.time = time #{day,night}
+        # #Videos parameters
+        # self.orientation = orientation #{front, back}
+        # self.rain = rain
+        # self.wind = wind
+        # self.snow = snow
+        # self.fog = fog
+        # self.time = time #{day,night}
 
-        #Img size
-        self.img_width = img_width
-        self.img_height = img_height        
+        # #Img size
+        # self.img_width = img_width
+        # self.img_height = img_height        
 
     # Resize the frame for gesture detection
     def resize_frame(self, frame = 'None'):
         if frame != 'None':
-            return frame[int(self.y1) : int(self.y2+1), int(self.x1+1) : int(self.x2+1)]
+            return self.frame[int(self.y1) : int(self.y2+1), int(self.x1+1) : int(self.x2+1)]
         else:
-            frame = cv2.imread(self.fileroot)
-            self.frame = frame[int(self.y1) : int(self.y2+1), int(self.x1+1) : int(self.x2+1)]
+            # frame = cv2.imread(self.fileroot)
+            self.frame = self.frame[int(self.y1) : int(self.y2+1), int(self.x1+1) : int(self.x2+1)]
 
     # Show info
     def show(self):
@@ -65,10 +69,10 @@ class Frame():
         print(f'Weather : [Snow : {self.snow}, Fog : {self.fog}, Wind : {self.wind}, Rain : {self.rain}]')
 
     def yolo_normalization(self):
-        self.x1 = round(((self.x1 + self.x2) / 2) / self.img_width,5)
-        self.y1 = round(((self.y1 + self.y2) / 2) / self.img_height,5)
-        self.x2 = round(((self.x2 + self.x1) / self.img_width) ,5)
-        self.y2 = round(((self.y2 + self.y1) / self.img_height),5)
+        self.x1 = round(((self.x1 + self.x2) / 2) / self.img_width, 5)
+        self.y1 = round(((self.y1 + self.y2) / 2) / self.img_height, 5)
+        self.x2 = round(((self.x2 + self.x1) / self.img_width), 5)
+        self.y2 = round(((self.y2 + self.y1) / self.img_height), 5)
 
     def write_txt_label(self, marshall_classification = False, signal_classification = False, path_final = 'None'):
         # Randomly separate the labels train/val
@@ -112,17 +116,21 @@ class Frame():
             
             sys.path.append('yolov7/')
             from detect_marshall import detect_marshall
-            values = detect_marshall(source = self.fileroot)
+            values = detect_marshall(frame = self.frame)
+            print(values)
 
-        if len(values) == 0:
+        if len(values) == []:
             print("No marshall found")
         
         else :
 
-            self.x1 = (values[0]-(values[2]/2))*self.img_width
-            self.y1 = (values[1]-(values[3]/2))*self.img_height
-            self.x2 = (values[0]+(values[2]/2))*self.img_width
-            self.y2 = (values[1]+(values[3]/2))*self.img_height   
+            img_height, img_width, _ = self.frame.shape
+
+            self.x1 = (values[0]-(values[2]/2))*img_width
+            self.y1 = (values[1]-(values[3]/2))*img_height
+            self.x2 = (values[0]+(values[2]/2))*img_width
+            self.y2 = (values[1]+(values[3]/2))*img_height   
+            print(f"{self.x1}:{self.y1}:{self.x2}:{self.y2}")
 
     def plot(self):
 
@@ -144,12 +152,16 @@ class Video():
     def __init__(self, filename = 'None', output_folder = "image_to_detect/", 
                  writing_folder = 'None',
                  clean_txt = False, clean_jpg = False,
-                 interface = Interface()):
+                 interface = Interface(),
+                 development = False):
         
         self.filename = filename        
         self.output_folder = output_folder + '/' + writing_folder + '/'
         self.writing_folder = writing_folder
         self.bbox_list = pd.DataFrame({'xmin': [], 'xmax': [], 'ymin': [], 'ymax': []})
+        
+        # Add interface
+        self.interface = interface
 
         # Clean previous files
         if clean_txt :
@@ -161,52 +173,48 @@ class Video():
         # Store the video to a list of frames
         self.frames = []
         self.frame_count = 0     
+
+        if development :
         
-        # Get the video properties
-        cap = cv2.VideoCapture(self.filename)
-        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            # Get the video properties
+            cap = cv2.VideoCapture(self.filename)
+            width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+            height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
-        # 10 Frames per second
-        fps = cap.get(cv2.CAP_PROP_FPS)
-        interval = 1/fps*10
+            # 10 Frames per second
+            fps = cap.get(cv2.CAP_PROP_FPS)
+            interval = 1/fps*10                    
 
-        # Load model
-        #self.model = load_model('models/DNN_model.h5')
+            # Loop through the frames in the video
+            while cap.isOpened():
+                # Read the current frame
+                ret, frame = cap.read()
+                time_stamp = cap.get(cv2.CAP_PROP_POS_MSEC) / 1000.0
 
-        # Add interface
-        self.interface = interface
+                # If we have reached the end of the video, break the loop
+                if not ret:
+                    break
 
-        # Loop through the frames in the video
-        while cap.isOpened():
-            # Read the current frame
-            ret, frame = cap.read()
-            time_stamp = cap.get(cv2.CAP_PROP_POS_MSEC) / 1000.0
+                if self.frame_count > 10:
+                    break
 
-            # If we have reached the end of the video, break the loop
-            if not ret:
-                break
+                if time_stamp > interval * self.frame_count:
 
-            if self.frame_count > 10:
-                break
+                    # Add the current frame to the list of frames
+                    filename = os.path.join(self.output_folder, self.filename.split("\\")[-1].split(".")[0] + f"_frame_{self.frame_count}.jpg")
+                    cv2.imwrite(filename, frame)
+                    self.frames.append(Frame(
+                        fileroot=os.path.join(self.output_folder, self.filename.split("\\")[-1].split(".")[0] + f"_frame_{self.frame_count}.jpg"),
+                        img_width=width, 
+                        img_height=height                   
+                    ))
 
-            if time_stamp > interval * self.frame_count:
+                    # Increment the frame count
+                    self.frame_count += 1           
 
-                # Add the current frame to the list of frames
-                filename = os.path.join(self.output_folder, self.filename.split("\\")[-1].split(".")[0] + f"_frame_{self.frame_count}.jpg")
-                cv2.imwrite(filename, frame)
-                self.frames.append(Frame(
-                    fileroot=os.path.join(self.output_folder, self.filename.split("\\")[-1].split(".")[0] + f"_frame_{self.frame_count}.jpg"),
-                    img_width=width, 
-                    img_height=height                   
-                ))
-
-                # Increment the frame count
-                self.frame_count += 1           
-
-        # Release the video capture object and close all windows
-        cap.release()
-        cv2.destroyAllWindows()      
+            # Release the video capture object and close all windows
+            cap.release()
+            cv2.destroyAllWindows()      
 
     def clean_previous_txt(self):
 
@@ -226,7 +234,7 @@ class Video():
         for file_path in jpg_files:
             os.remove(file_path)   
 
-    def detection(self, yolo = True, loading_data = False):
+    def detection(self, yolo = False, loading_data = False):
 
         if yolo :
 
@@ -250,6 +258,7 @@ class Video():
             self.y2 = int(self.frames[0].img_height)
 
         if not loading_data:
+
             # Resize the video to this shape and detect the posture
             self.posture()
 
@@ -262,26 +271,47 @@ class Video():
     def show(self):
         print(f'Video bbox : (xmin, xmax, ymin, ymax) = ({self.x1}, {self.x2}, {self.y1}, {self.y2})')
 
-    def update(self, nb_frames = 1):
-        
-        # We remove the last x frames and add the new x frames
-        for i in range(nb_frames):
-            # Check if the file exists
-            file_path = self.frames[i].x
-            if os.path.exists(file_path):
-                # Remove the file
-                os.remove(file_path)
+    def update(self, frame = None, ite = 0):
 
-        self.frames = self.frames[nb_frames:]
+        if isinstance(frame, list):
+            nb_frames = len(frame)
+        else :
+            nb_frames = 1
 
-    def classify(self):
+        print(len(self.frames))
 
-        # Predict with the model
-        output = self.model.predict(self.video_angles)
-        value = np.argmax(output, axis=1)
+        if len(self.frames) >= 14:
 
-        # Generate Kafka exception
-        self.interface.json_output(value)
+            self.frames = self.frames[nb_frames:]
+            self.frames.append(Frame(frame = frame, fileroot = frame_name)) 
+
+        else :
+
+            frame_name = f"test_videos/{self.interface.eventID}_{ite}.png"
+            # cv2.imwrite(frame_name, frame)
+            self.frames.append(Frame(frame = frame, fileroot = frame_name))        
+
+    def classify(self, list_input = None):
+
+        if list_input is not None:
+            self.video_angles = list_input
+
+        if len(self.video_angles) == 14:
+
+            try :
+
+                # Predict with the model
+                print(np.shape(self.video_angles))
+                self.video_angles = np.reshape(self.video_angles, (1, 14, 4))
+                output = CLASSIFIER.predict(self.video_angles)
+                value = np.argmax(output, axis=1)
+
+                # Generate Kafka exception
+                self.interface.json_output(value)
+
+            except Exception as e:
+
+                print(e)
 
 
     def posture(self, write_files_norm = False, write_files_angles = False):
@@ -321,3 +351,9 @@ class Video():
             m_angles = np.array(self.video_angles)
             m_angles = m_angles.reshape(-1, m_angles.shape[-1])
             np.savetxt(os.path.join(output_angles, self.filename.split("\\")[-1].split(".")[0] + '.txt'), m_angles, fmt='%.4f')
+
+if __name__ == '__main__':
+
+    video = Video()
+    print(np.shape([[0,0,0,0] for _ in range(14)]))
+    video.classify(list_input=[[0,0,0,0] for _ in range(14)])

@@ -5,14 +5,8 @@ import os
 
 class PipeDetection():
 
-    def __init__(self, frame, fileroot):
-        self.frame = frame 
-        self.fileroot = fileroot 
-
-        try :
-            self.set_matrix_landmarks()   
-        except :
-            pass
+    def __init__(self, frame = ''):
+        self.frame = frame        
 
     def set_matrix_landmarks(self):
         ### INPUT: an object from the class Frame
@@ -21,6 +15,7 @@ class PipeDetection():
         # 
         # Perform pose detection after converting the image into RGB format.
         # Initializing mediapipe pose class.
+
         mp_pose = mp.solutions.pose
 
         # Setting up the Pose function.
@@ -57,21 +52,26 @@ class PipeDetection():
                 normalized[2] = normalized[2] / mat[6][2]
                 matnormalized.append(normalized)
 
-            self.matnormalized = matnormalized
-
             return matnormalized
         
         except:
 
             return [[0,0,0] for _ in range(8)]
     
-    def get_angles(self):
+    def get_angles(self, frame):
+
+        self.frame = frame
 
         ### INPUT: object in the class Frame
         ### OUTPUT: a list with four angles: the right wrist, elbow, shoulder angle 
         ###                                  the right elbow, shoulder, hip angle
         ###                                  the left elbow, shoulder, hip angle
         ###                                  the left wrist, elbow, shoulder angle
+
+        try :
+            self.set_matrix_landmarks()   
+        except :
+            pass
 
         try :
 
@@ -84,6 +84,8 @@ class PipeDetection():
                     pixels[1] = pixels[1]*image_height
                     pixels[2] = pixels[2]*image_width
                     matpixels.append(pixels)
+
+            matpixels = np.array(matpixels)
 
             ax = matpixels[0][0] - matpixels[1][0]
             ay = matpixels[0][1] - matpixels[1][1]
@@ -153,29 +155,27 @@ class PipeDetection():
 
                 angles.append(angle_degrees)
 
-            self.angles = angles
-
             return angles
     
-        except :
+        except Exception as e :
             
             return [0, 0, 0, 0]
 
     
-    def write_txt(self):
+    # def write_txt(self):
 
-        # m = self.get_landmarks_normalized()
-        a = self.get_angles()
+    #     # m = self.get_landmarks_normalized()
+    #     a = self.get_angles()
 
-        # Output folders
-        output_angles = "image_to_detect/angles/"
-        output_norm = "image_to_detect/norm/"
+    #     # Output folders
+    #     output_angles = "image_to_detect/angles/"
+    #     output_norm = "image_to_detect/norm/"
 
-        # # Write TXT norm
-        # m_norm = np.array(self.matnormalized)
-        # np.savetxt(os.path.join(output_norm, self.fileroot + '.txt'), m_norm, fmt='%.4f') 
+    #     # # Write TXT norm
+    #     # m_norm = np.array(self.matnormalized)
+    #     # np.savetxt(os.path.join(output_norm, self.fileroot + '.txt'), m_norm, fmt='%.4f') 
 
-        # Write TXT angles
-        m_angles = np.array(self.angles)
-        np.savetxt(os.path.join(output_angles, self.fileroot + '.txt'), m_angles, fmt='%.4f') 
+    #     # Write TXT angles
+    #     m_angles = np.array(self.angles)
+    #     np.savetxt(os.path.join(output_angles, self.fileroot + '.txt'), m_angles, fmt='%.4f') 
         

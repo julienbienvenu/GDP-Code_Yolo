@@ -276,15 +276,15 @@ class FCNN_Model():
 
         # Define the preweighted models
         models = {
-            # 'Logistic Regression': LogisticRegression(class_weight='balanced', max_iter=epochs),
+            'Logistic Regression': LogisticRegression(class_weight='balanced', max_iter=epochs),
             'Random Forest': RandomForestClassifier(class_weight='balanced', n_estimators=epochs),
-            # 'SVM': SVC(class_weight='balanced', max_iter=epochs),
-            # 'Naive Bayes': GaussianNB(),
-            # 'Gradient Boosting': GradientBoostingClassifier(n_estimators=epochs),
-            # 'Decision Tree': DecisionTreeClassifier(class_weight='balanced', max_depth=10),
-            # 'KNN': KNeighborsClassifier(weights='distance', n_neighbors=10),
-            # 'Multi-layer Perceptron': MLPClassifier(hidden_layer_sizes=(32, 16), max_iter=epochs),
-            # 'AdaBoost': AdaBoostClassifier(n_estimators=epochs),
+            'SVM': SVC(class_weight='balanced', max_iter=epochs),
+            'Naive Bayes': GaussianNB(),
+            'Gradient Boosting': GradientBoostingClassifier(n_estimators=epochs),
+            'Decision Tree': DecisionTreeClassifier(class_weight='balanced', max_depth=10),
+            'KNN': KNeighborsClassifier(weights='distance', n_neighbors=10),
+            'Multi-layer Perceptron': MLPClassifier(hidden_layer_sizes=(32, 16), max_iter=epochs),
+            'AdaBoost': AdaBoostClassifier(n_estimators=epochs)
             # 'XGBoost': XGBClassifier(n_estimators=epochs, max_depth=10, objective='multi:softmax', num_class=15)
         }
 
@@ -293,7 +293,7 @@ class FCNN_Model():
 
         return score
 
-    def train_created_models(self, epochs = 25):
+    def train_created_models(self, epochs = 25, k1 = 56, k2 = 56, k3 = 28):
 
         self.X_train = np.reshape(self.X_train, (self.X_train.shape[0], self.X_train.shape[1], self.X_train.shape[2], 1))
         self.X_test = np.reshape(self.X_test, (self.X_test.shape[0], self.X_test.shape[1], self.X_test.shape[2], 1))
@@ -302,37 +302,41 @@ class FCNN_Model():
 
         # Define the CNN architecture
         cnn_model = Sequential([
-            layers.Conv2D(filters=56, kernel_size=(3, 3), activation='relu', input_shape=(14, 4, 1), padding='same'),
+            layers.Conv2D(filters=k1, kernel_size=(3, 3), activation='relu', input_shape=(14, 4, 1), padding='same'),
             layers.MaxPooling2D(pool_size=(2, 2)),
             Dropout(0.3),
-            layers.Conv2D(filters=56, kernel_size=(3, 3), activation='relu', padding='same'),
+            layers.Conv2D(filters=k2, kernel_size=(3, 3), activation='relu', padding='same'),
             layers.MaxPooling2D(pool_size=(2, 2)),
             Dropout(0.3),
             layers.Flatten(),
-            layers.Dense(units=28, activation='relu'),
+            layers.Dense(units=k3, activation='relu'),
             layers.Dense(units=15, activation='softmax')
         ])
 
         cnn_model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+        print()
 
         # Define the model
         dnn_model = Sequential([
+            layers.Reshape(target_shape=(14, 4), input_shape=(14, 4, 1)),
+            layers.Flatten(),
             Dense(56, activation='relu', input_shape=(14, 4)),
-            Dropout(0.5),
+            Dropout(0.2),
             Dense(56, activation='relu'),
-            Dropout(0.5),
+            Dropout(0.2),
             Dense(15, activation='softmax')
         ])
 
-        dnn_model.compile(optimizer='adam',loss='categorical_crossentropy', metrics=['accuracy'])
+        dnn_model.compile(optimizer='adam',loss='categorical_crossentropy', metrics=['accuracy'])        
 
-        # # Define the RNN architecture
-        # rnn_model = Sequential([
-        #     layers.TimeDistributed(Dense(units=32, activation='relu'), input_shape=(None, 14, 4, 1)),
-        #     layers.SimpleRNN(units=32),
-        #     layers.Dense(units=15, activation='softmax')
-        # ])
-        # rnn_model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+        # Define the RNN architecture
+        rnn_model = Sequential([
+            layers.Reshape(target_shape=(14, 4), input_shape=(14, 4, 1)),
+            layers.SimpleRNN(units=56, return_sequences=True),
+            layers.SimpleRNN(units=56),
+            layers.Dense(units=15, activation='softmax')
+        ])
+        rnn_model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
 
         lstm_model = Sequential()
         lstm_model.add(LSTM(56, input_shape=(14, 4), return_sequences=True))
@@ -349,15 +353,17 @@ class FCNN_Model():
 
         # Models
         models = {
-            "CNN" : cnn_model,
-            # "RNN" : rnn_model,
-            "LSTM" : lstm_model,
+            # "CNN" : cnn_model,
+            "RNN" : rnn_model,
+            # "LSTM" : lstm_model,
             # "DNN" : dnn_model
         }
         
-        self.plot(models, epochs, name = 'cnn_lstm_rnn')
+        params, score = self.plot(models, epochs, name = 'cnn_lstm_rnn', params = cnn_model.count_params())
 
-    def plot(self, models, epochs, name = ''):
+        return params, score
+
+    def plot(self, models, epochs, name = '', params = 0):
 
         # Train and evaluate each model for X epochs
         scores = []
@@ -382,6 +388,8 @@ class FCNN_Model():
                 score = accuracy_score(np.argmax(self.y_test, axis=1), np.argmax(y_pred, axis=1))
                 scores.append(score)
                 times.append(time.time() - start_time)
+
+                fig = plt.figure(figsize=(20, 20))
                 cm = confusion_matrix(np.argmax(self.y_test, axis=1), np.argmax(y_pred, axis=1))                
                 row_sums = cm.sum(axis=1)
                 col_sums = cm.sum(axis=0)             
@@ -393,13 +401,21 @@ class FCNN_Model():
                 plt.xlabel('Predicted label')
                 plt.ylabel('True label')
                 plt.title(f'CM {name}')
-                plt.savefig(f'output_graph/Angles_detection/cm_{name}.png')
+
+                # Add values of each box as text
+                for i in range(normalized_cm.shape[0]):
+                    for j in range(normalized_cm.shape[1]):
+                        plt.text(j, i, format(normalized_cm[i, j], '.2f'), ha='center', va='center')
+
+                plt.savefig(f'output_graph/Angles_detection/cm_{name}.png', dpi=300)
                 # save_model(self.model, f'PoseEstimation/fcnn_batch{batch_size}.h5')
                 plt.clf()
 
+                save_model(model, f'models/{name}.h5')
+
                 print(f"{name}: {score}")
 
-                return score
+                # return params, score
 
             except :
 
@@ -413,6 +429,8 @@ class FCNN_Model():
                 row_sums = cm.sum(axis=1)
                 col_sums = cm.sum(axis=0)             
                 normalized_cm = cm / row_sums[:, np.newaxis]
+
+                fig = plt.figure(figsize=(20, 20))
                 plt.imshow(normalized_cm, interpolation='nearest', cmap=plt.cm.Blues)
                 plt.colorbar()
                 plt.xticks(range(15), [i+1 for i in range(15)], rotation=45)
@@ -420,13 +438,19 @@ class FCNN_Model():
                 plt.xlabel('Predicted label')
                 plt.ylabel('True label')
                 plt.title(f'CM {name}')
-                plt.savefig(f'output_graph/Angles_detection/cm_{name}.png')
-                # save_model(self.model, f'PoseEstimation/fcnn_batch{batch_size}.h5')
+
+                # Add values of each box as text
+                for i in range(normalized_cm.shape[0]):
+                    for j in range(normalized_cm.shape[1]):
+                        plt.text(j, i, format(normalized_cm[i, j], '.2f'), ha='center', va='center')
+
+                plt.savefig(f'output_graph/Angles_detection/cm_{name}.png', dpi=300)
+                save_model(model, f'models/{name}.h5')
                 plt.clf()
 
                 print(f"{name}: {score}")
 
-                return score
+                # return params, score
 
         if self.plot_bool :
             # Plot the results in a histogram
@@ -550,6 +574,27 @@ def three_accuracy():
     # Show the plot
     plt.show()
 
+def add_line_to_file(arg1, arg2):
+    # Open the file in append mode
+    with open('test_videos/result.txt', 'a') as file:
+        # Create a formatted string with the 6 arguments
+        line = f"{arg1}\t{arg2}\n"
+        # Write the formatted string to the file
+        file.write(line)
+
+def get_top3_values_and_indexes(arr):
+    # Convert the input array to a NumPy array
+    arr = np.array(arr)
+    if arr.size >= 3:
+        # Get the indices that would sort the array in descending order
+        sorted_indices = np.argsort(arr)[::-1]
+        # Extract the top 3 indices
+        top3_indices = sorted_indices[:3]
+        # Extract the top 3 values using the top 3 indices
+        top3_values = arr[top3_indices]
+        return top3_values, top3_indices
+
+
 
 def sort_angles():
 
@@ -564,6 +609,53 @@ def sort_angles():
         for i in range(int(len(cls)*0.2)):
             shutil.move(cls[i], 'image_to_detect/angles_test/'+ cls[i].split('/')[-1])
 
+def accuracy_by_trainable():
+
+    # Example data for accuracy and trainable parameters
+    scores = []
+    parameters = []
+    k3s = []
+    k2s = []
+
+    k = [16, 32, 64, 128, 256]
+    fcnn = FCNN_Model()
+
+    # CNN - Architecure
+    for k2 in k:
+        for k3 in k:
+            
+            params, score = fcnn.train_created_models(epochs = 30, k2 = k2, k3 = k3)
+            parameters.append(params)
+            scores.append(score)
+            k2s.append(k2)
+            k3s.append(k3)
+
+    # Create a scatter plot
+    plt.scatter(parameters, scores)
+    plt.xlabel('Trainable Parameters')
+    plt.ylabel('Accuracy')
+    plt.title('CNN Accuracy vs. Trainable Parameters (50 epochs)')
+    plt.savefig('output_graph/Angles_detection/CNN_params_2d.png')
+    plt.show()
+
+    # Create a 3D plot
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+
+    # Plot the data
+    ax.scatter(k2s, k3s, score)
+
+    # Set labels for the axes
+    ax.set_xlabel('max_percent_change')
+    ax.set_ylabel('max_size_change')
+    ax.set_zlabel('Accuracy')
+
+    # Show the plot
+    plt.title('CNN Accuracy vs. CNN layers (50 epochs)')
+    plt.savefig('output_graph/Angles_detection/CNN_params_3d.png')
+    plt.show()
+
+
 
 if __name__ == '__main__':
 
@@ -571,11 +663,11 @@ if __name__ == '__main__':
 
     # Load X,y inside class definition    
     # fcnn = FCNN_Model()    
-    # fcnn.train_others(epochs = 50)
+    # fcnn.train_others(epochs = 100)
 
-    # fcnn = FCNN_Model()    
-    # fcnn.train_created_models(epochs = 100)
+    fcnn = FCNN_Model()    
+    fcnn.train_created_models(epochs = 100)
     # fcnn.train_parameters(epochs = 50)
     # test_batch()
 
-    three_accuracy()
+    # accuracy_by_trainable()
